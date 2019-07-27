@@ -34,10 +34,11 @@ class TestFs(pyfuse3.Operations):
 
     def __init__(self):
         super(TestFs, self).__init__()
-        self.files = dict({
-            pyfuse3.ROOT_INODE+1: dict({"name": b"a_name", "data": b"a_data", "type": "file", "path": "./"}),
-            pyfuse3.ROOT_INODE+2: dict({"name": b"message", "data": b"hello world\n", "type": "file", "path": "./"})
-        })
+        # self.files = dict({
+        #    pyfuse3.ROOT_INODE+1: dict({"name": b"a_name", "data": b"a_data", "type": "file", "path": "./"}),
+        #    pyfuse3.ROOT_INODE+2: dict({"name": b"message", "data": b"hello world\n", "type": "file", "path": "./"})
+        # })
+        self.files = dict()
         self._lookup_cnt = defaultdict(lambda: 0)
         self._fd_inode_map = dict()
         self._inode_fd_map = dict()
@@ -54,7 +55,10 @@ class TestFs(pyfuse3.Operations):
 
     def _add_inode(self, path, node_type="file", data=None):
         log.info('_add_node for %s', path)
-        inode = list(self.files.keys())[-1] + 1
+        if len(self.files) == 0:
+            inode = pyfuse3.ROOT_INODE + 1
+        else:
+            inode = list(self.files.keys())[-1] + 1
         self._add_path(inode, path, node_type, data)
         return inode
 
@@ -110,31 +114,72 @@ class TestFs(pyfuse3.Operations):
 
     def __get_node_by_name(self, name):
         log.info("get node by name: %s", name)
-        name = name.encode("utf-8")
+        if type(name) is str:
+            name = name.encode("utf-8")
         for idx in self.files:
             if self.files[idx]["name"] == name:
                 return self.files[idx]
         raise Exception("Found no node for name %s", name)
 
+    def __get_index_by_name(self, name):
+        log.info("get node by name: %s", name)
+        if type(name) is str:
+            name = name.encode("utf-8")
+        for idx in self.files:
+            if self.files[idx]["name"] == name:
+                return idx
+        raise Exception("Found no node for name %s", name)
+
     def _getattr(self, inode):
+        '''
+            dev_t     st_dev;         /* ID of device containing file */
+            ino_t     st_ino;         /* Inode number */
+            mode_t    st_mode;        /* File type and mode */
+            nlink_t   st_nlink;       /* Number of hard links */
+            uid_t     st_uid;         /* User ID of owner */
+            gid_t     st_gid;         /* Group ID of owner */
+            dev_t     st_rdev;        /* Device ID (if special file) */
+            off_t     st_size;        /* Total size, in bytes */
+            blksize_t st_blksize;     /* Block size for filesystem I/O */
+            blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
+
+            /* Since Linux 2.6, the kernel supports nanosecond
+                precision for the following timestamp fields.
+                For the details before Linux 2.6, see NOTES. */
+
+            struct timespec st_atim;  /* Time of last access */
+            struct timespec st_mtim;  /* Time of last modification */
+            struct timespec st_ctim;  /* Time of last status change */
+        '''
         entry = pyfuse3.EntryAttributes()
         node = None
         # TODO: Hier ist das Problem: eigentlich sollte 4 kein attribut haben!
         if inode in self.files and "attr" in self.files[inode]:
+            log.info("inode: %d, st_ino: %d", inode,
+                     self.files[inode]["attr"].st_ino)
+        if inode in self.files and "attr" in self.files[inode] and self.files[inode]["attr"].st_ino != 0:
             log.info("inode %d has attribute", inode)
             return self.files[inode]["attr"]
         elif inode == pyfuse3.ROOT_INODE:
+            log.info("root inode")
             entry.st_mode = (stat.S_IFDIR | 0o755)
             entry.st_size = 0
         else:
             try:
+                log.info("new inode: %d", inode)
                 node = self.files[inode]
-                if node["type"] == "file":
+                if node["name"].decode("utf-8").endswith(".swp"):
+                    node["type"] = "swp"
+                if node["type"] == "dir":
+                    entry.st_mode = (stat.S_IFDIR | 0o755)
+                    entry.st_size = 0
+                elif node["type"] == "swp":
+                    log.info("its a swap FILE !!!")
                     entry.st_mode = (stat.S_IFREG | 0o666)
                     entry.st_size = len(node["data"])
                 else:
-                    entry.st_mode = (stat.S_IFDIR | 0o755)
-                    entry.st_size = 0
+                    entry.st_mode = (stat.S_IFREG | 0o666)
+                    entry.st_size = len(node["data"])
             except:
                 raise FUSEError(errno.ENOENT)
 
@@ -147,20 +192,22 @@ class TestFs(pyfuse3.Operations):
         entry.st_uid = os.getuid()
         entry.st_ino = inode
 
+        # if new node -> add attr field with entry
         if node is not None:
             self.files[inode]["attr"] = entry
         return entry
 
     async def getattr(self, inode, ctx=None):
-        log.info("GET ATTRIBUTE with: %i", inode)
+        log.info("----")
+        log.info("getattr: %i", inode)
+        log.info("----")
         return self._getattr(inode)
 
     async def lookup(self, parent_inode, name, ctx=None):
-        log.info("lookup")
-        log.info(ctx.pid)
-        log.info(ctx.uid)
-        log.info(ctx.gid)
-        log.info(ctx.umask)
+        log.info("----")
+        log.info("lookup: %s", name)
+        log.info("----")
+
         # TODO: parent_inode save in dict and evaluate here
         log.info("Parent Inode: %i", parent_inode)
         name = name.decode("utf-8")
@@ -191,8 +238,9 @@ class TestFs(pyfuse3.Operations):
         return attr
 
     async def mkdir(self, parent_inode, name, mode, ctx):
-        log.info("mkdir")
-        log.info("name: %s", name)
+        log.info("----")
+        log.info("mkdir: %s", name)
+        log.info("----")
         return self._getattr(self._add_inode(self.__get_path(parent_inode, name), node_type="dir"))
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
@@ -207,23 +255,38 @@ class TestFs(pyfuse3.Operations):
         """
 
     async def opendir(self, inode, ctx):
-        log.info("opendir")
+        log.info("----")
+        log.info("opendir: %d", inode)
+        log.info("----")
         return inode
 
-    async def readdir(self, fh, start_id, token):
-        log.info("readdir")
+    async def readdir(self, inode, start_id, token):
+        log.info("----")
+        log.info("readdir: %d", inode)
+        log.info("----")
         log.info(start_id)
-        for key, value in self.files.items():
+        if inode == pyfuse3.ROOT_INODE:
+            dir_path = "./"
+        else:
+            dir_path = self._inode_to_path(inode) + "/"
+        log.info("dirpath: %s", dir_path)
+        arr = {k: v for k, v in self.files.items() if v["path"] == dir_path}
+        log.info("items in dir: %d", len(arr))
+        for key, value in arr.items():
             log.info("Key: %s, Value_name: %s", key, value["name"])
-            if key < start_id:
+            if key <= start_id:
                 continue
-            if value["type"] == "dir" and not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
-                log.info("chose: %s", value["name"])
+            if value["type"] == "swp":
+                log.info("swp: %s", value["name"])
+                continue
+            if not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
                 break
         return
 
     async def open(self, inode, flags, ctx):
-        log.info("open")
+        log.info("----")
+        log.info("open: %d", inode)
+        log.info("----")
         """
         if inode in self._inode_fd_map:
             fd = self._inode_fd_map[inode]
@@ -244,13 +307,17 @@ class TestFs(pyfuse3.Operations):
         return inode
 
     async def read(self, inode, off, size):
-        log.info("read")
+        log.info("----")
+        log.info("read: %d", inode)
+        log.info("----")
         log.info(self.files[inode]["data"][off: off+size])
         return self.files[inode]["data"][off: off+size]
 
     # TODO: implement mode and flags
     async def create(self, parent_inode, name, mode, flags, ctx):
-        log.info("Create")
+        log.info("----")
+        log.info("create: %s", name)
+        log.info("----")
         '''Create a file with permissions *mode* and open it with *flags*
         *ctx* will be a `RequestContext` instance.
         The method must return a tuple of the form *(fh, attr)*, where *fh* is a
@@ -279,8 +346,10 @@ class TestFs(pyfuse3.Operations):
 
         return (inode, attr)
 
-    async def release(self, fh):
-        log.info("release: %s", fh)
+    async def release(self, inode):
+        log.info("----")
+        log.info("release: %s", inode)
+        log.info("----")
         '''Release open file
         This method will be called when the last file descriptor of *fh* has
         been closed, i.e. when the file is no longer opened by any client
@@ -308,8 +377,10 @@ class TestFs(pyfuse3.Operations):
         """
         pass
 
-    async def releasedir(self, fh):
-        log.info("releasedir")
+    async def releasedir(self, inode):
+        log.info("----")
+        log.info("releasedir: %d", inode)
+        log.info("----")
         '''Release open directory
         This method will be called exactly once for each `opendir` call. After
         *fh* has been released, no further `readdir` requests will be received
@@ -319,7 +390,9 @@ class TestFs(pyfuse3.Operations):
         pass
 
     async def setattr(self, inode, attr, fields, fh, ctx):
-        log.info("setattr")
+        log.info("----")
+        log.info("setattr: %d", inode)
+        log.info("----")
         '''Change attributes of *inode*
         *fields* will be an `SetattrFields` instance that specifies which
         attributes are to be updated. *attr* will be an `EntryAttributes`
@@ -366,6 +439,35 @@ class TestFs(pyfuse3.Operations):
             raise FUSEError(exc.errno)
 
         return await self.getattr(inode)
+
+    async def unlink(self, parent_inode, name, ctx):
+        log.info("----")
+        log.info("unlink: %s", name)
+        log.info("----")
+        '''Remove a (possibly special) file
+            This method must remove the (special or regular) file *name* from the
+            direcory with inode *parent_inode*.  *ctx* will be a `RequestContext`
+            instance.
+            If the inode associated with *file* (i.e., not the *parent_inode*) has a
+            non-zero lookup count, or if there are still other directory entries
+            referring to this inode (due to hardlinks), the file system must remove
+            only the directory entry (so that future calls to `readdir` for
+            *parent_inode* will no longer include *name*, but e.g. calls to
+            `getattr` for *file*'s inode still succeed). (Potential) removal of the
+            associated inode with the file contents and metadata must be deferred to
+            the `forget` method to be carried out when the lookup count reaches zero
+            (and of course only if at that point there are no more directory entries
+            associated with the inode either).
+            '''
+
+        idx = self.__get_index_by_name(name)
+        log.info("inode: %d", idx)
+        del self.files[idx]
+
+    async def flush(self, inode):
+        log.info("----")
+        log.info("flush: %d", inode)
+        log.info("----")
 
 
 def init_logging(debug=False):
