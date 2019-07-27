@@ -9,6 +9,7 @@ import pyfuse3
 import errno
 import logging
 import stat
+import time
 from argparse import ArgumentParser
 import os
 import sys
@@ -68,7 +69,7 @@ class TestFs(pyfuse3.Operations):
             name = path.split(os.path.sep)[-1]
             path = path[:-len(name)]
             log.info("name: %s, path: %s", name, path)
-            if data is None:
+            if node_type == "file" and data is None:
                 data = "No data.\n"
             if type(data) is str:
                 data = data.encode("utf-8")
@@ -117,7 +118,12 @@ class TestFs(pyfuse3.Operations):
 
     def _getattr(self, inode):
         entry = pyfuse3.EntryAttributes()
-        if inode == pyfuse3.ROOT_INODE:
+        node = None
+        # TODO: Hier ist das Problem: eigentlich sollte 4 kein attribut haben!
+        if inode in self.files and "attr" in self.files[inode]:
+            log.info("inode %d has attribute", inode)
+            return self.files[inode]["attr"]
+        elif inode == pyfuse3.ROOT_INODE:
             entry.st_mode = (stat.S_IFDIR | 0o755)
             entry.st_size = 0
         else:
@@ -132,7 +138,8 @@ class TestFs(pyfuse3.Operations):
             except:
                 raise FUSEError(errno.ENOENT)
 
-        stamp = int(1438467123.985654 * 1e9)
+        # current time in nanoseconds
+        stamp = int(time.time() * 1e9)
         entry.st_atime_ns = stamp
         entry.st_ctime_ns = stamp
         entry.st_mtime_ns = stamp
@@ -140,6 +147,8 @@ class TestFs(pyfuse3.Operations):
         entry.st_uid = os.getuid()
         entry.st_ino = inode
 
+        if node is not None:
+            self.files[inode]["attr"] = entry
         return entry
 
     async def getattr(self, inode, ctx=None):
@@ -173,8 +182,8 @@ class TestFs(pyfuse3.Operations):
         # if name != '.' and name != '..':
             # return self._getattr(self._add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
         # new error
-        #raise Exception("Lookup failed.")
-        #raise pyfuse3.FUSEError(errno.ENOENT)
+        # raise Exception("Lookup failed.")
+        # raise pyfuse3.FUSEError(errno.ENOENT)
 
         # If no node is found
         attr = pyfuse3.EntryAttributes()
@@ -203,11 +212,13 @@ class TestFs(pyfuse3.Operations):
 
     async def readdir(self, fh, start_id, token):
         log.info("readdir")
+        log.info(start_id)
         for key, value in self.files.items():
-            if key <= start_id:
-                continue
             log.info("Key: %s, Value_name: %s", key, value["name"])
-            if not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
+            if key < start_id:
+                continue
+            if value["type"] == "dir" and not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
+                log.info("chose: %s", value["name"])
                 break
         return
 
@@ -327,60 +338,29 @@ class TestFs(pyfuse3.Operations):
         The method should return an `EntryAttributes` instance (containing both
         the changed and unchanged values).
         '''
-        # We use the f* functions if possible so that we can handle
-        # a setattr() call for an inode without associated directory
-        # handle.
-        if fh is None:
-            path_or_fh = self._inode_to_path(inode)
-            truncate = os.truncate
-            chmod = os.chmod
-            chown = os.chown
-            stat = os.lstat
-        else:
-            path_or_fh = fh
-            truncate = os.ftruncate
-            chmod = os.fchmod
-            chown = os.fchown
-            stat = os.fstat
+
+        new_attr = self.files[inode]["attr"]
 
         try:
             if fields.update_size:
-                truncate(path_or_fh, attr.st_size)
+                new_attr.st_size = attr.st_size
 
             if fields.update_mode:
-                # Under Linux, chmod always resolves symlinks so we should
-                # actually never get a setattr() request for a symbolic
-                # link.
-                assert not stat_m.S_ISLNK(attr.st_mode)
-                chmod(path_or_fh, stat_m.S_IMODE(attr.st_mode))
+                new_attr.st_mode = attr.st_mode
 
             if fields.update_uid:
-                chown(path_or_fh, attr.st_uid, -1, follow_symlinks=False)
+                new_attr.st_uid = attr.st_uid
 
             if fields.update_gid:
-                chown(path_or_fh, -1, attr.st_gid, follow_symlinks=False)
+                new_attr.st_gid = attr.st_gid
 
-            if fields.update_atime and fields.update_mtime:
-                if fh is None:
-                    os.utime(path_or_fh, None, follow_symlinks=False,
-                             ns=(attr.st_atime_ns, attr.st_mtime_ns))
-                else:
-                    os.utime(path_or_fh, None,
-                             ns=(attr.st_atime_ns, attr.st_mtime_ns))
-            elif fields.update_atime or fields.update_mtime:
-                # We can only set both values, so we first need to retrieve the
-                # one that we shouldn't be changing.
-                oldstat = stat(path_or_fh)
-                if not fields.update_atime:
-                    attr.st_atime_ns = oldstat.st_atime_ns
-                else:
-                    attr.st_mtime_ns = oldstat.st_mtime_ns
-                if fh is None:
-                    os.utime(path_or_fh, None, follow_symlinks=False,
-                             ns=(attr.st_atime_ns, attr.st_mtime_ns))
-                else:
-                    os.utime(path_or_fh, None,
-                             ns=(attr.st_atime_ns, attr.st_mtime_ns))
+            if fields.update_atime:
+                new_attr.st_atime_ns = attr.st_atime_ns
+            if fields.update_mtime:
+                new_attr.st_mtime_ns = attr.st_mtime_ns
+
+            new_attr.st_ctime_ns = int(time.time() * 1e9)
+            self.files[inode]["attr"] = new_attr
 
         except OSError as exc:
             raise FUSEError(exc.errno)
