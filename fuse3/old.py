@@ -39,6 +39,9 @@ class TestFs(pyfuse3.Operations):
     def __init__(self, mnt_point):
         super().__init__()
         self.mnt_point = mnt_point
+
+        # Each key - value pair has one or more paths (because of links)
+        # TODO: Needed?
         self._inode_path_map = {
             # pyfuse3.ROOT_INODE: os.path.abspath(os.path.join(".", mnt_point))
         }
@@ -769,6 +772,7 @@ class TestFs(pyfuse3.Operations):
     def _forget_path(self, inode, path):
         log.debug('forget %s for %d', path, inode)
         val = self._inode_path_map[inode]
+
         if isinstance(val, set):
             val.remove(path)
             if len(val) == 1:

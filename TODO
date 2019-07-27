@@ -1,0 +1,9 @@
+- [ ] lookup counts need to be implemented
+- [ ] forget method
+- [ ] ioctl methods
+- [ ] link
+- [ ] statfs
+- [ ] access
+- [ ] rename
+- [ ] symlink
+- [ ] mknod
