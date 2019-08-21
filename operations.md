@@ -65,3 +65,5 @@ Procedure:
 
 Not Working:
 filename.swp can't be opened
+
+TODO: MQTT creates file, writes it -> FS freezes
