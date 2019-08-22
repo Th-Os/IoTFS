@@ -95,7 +95,7 @@ class TestFs(pyfuse3.Operations):
         if type(name) is not str:
             name = name.decode("utf-8")
         else:
-            self.log.info("Path is already encoded in utf-8")
+            self.log.debug("Path is already encoded in utf-8")
         try:
             if parent_inode == pyfuse3.ROOT_INODE:
                 path = os.path.join(".", name)
@@ -109,6 +109,21 @@ class TestFs(pyfuse3.Operations):
             return path
         except:
             raise Exception("Failed getting path.")
+
+    def __get_path_inode(self, inode):
+        self.log.debug("Get Path by Inode: %d", inode)
+        self.log.debug("Is inode in files? %s", (inode in self.files))
+        if inode == pyfuse3.ROOT_INODE:
+            return "."
+        if inode not in self.files:
+            return self.__get_path_inode(pyfuse3.ROOT_INODE)
+        try:
+            node = self.files[inode]
+            path = node["path"] + node["name"].decode("utf-8") + os.path.sep
+        except:
+            raise Exception(
+                "Failed to combine path and node of inode %d" % inode)
+        return path
 
     def __get_node_by_name(self, name):
         self.log.info("get node by name: %s", name)
@@ -163,8 +178,11 @@ class TestFs(pyfuse3.Operations):
             entry.st_mode = (stat.S_IFDIR | 0o755)
             entry.st_size = 0
         else:
+            '''
+            TODO: Here is a fundamental error! somehow everything is freezing.
+            '''
             try:
-                self.log.info("new inode: %d", inode)
+                self.log.info("create new inode: %d", inode)
                 node = self.files[inode]
                 if node["name"].decode("utf-8").endswith(".swp"):
                     node["type"] = "swp"
@@ -172,12 +190,21 @@ class TestFs(pyfuse3.Operations):
                     entry.st_mode = (stat.S_IFDIR | 0o755)
                     entry.st_size = 0
                 elif node["type"] == "swp":
-                    log.info("its a swap FILE !!!")
+                    self.log.warn("its a swap FILE !!!")
                     entry.st_mode = (stat.S_IFREG | 0o666)
                     entry.st_size = len(node["data"])
                 else:
                     entry.st_mode = (stat.S_IFREG | 0o666)
-                    entry.st_size = len(node["data"])
+                    data = node["data"]
+                    self.log.debug("size of data: %d", len(data))
+                    size = 0
+                    if data is not None:
+                        if type(data) is not str:
+                            size = len(data.decode("utf-8"))
+                            self.log.debug("size of data decoded: %d", size)
+                        else:
+                            size = len(data)
+                    entry.st_size = size
             except:
                 raise FUSEError(errno.ENOENT)
 
@@ -209,20 +236,29 @@ class TestFs(pyfuse3.Operations):
         # TODO: parent_inode save in dict and evaluate here
         self.log.info("Parent Inode: %i", parent_inode)
         name = name.decode("utf-8")
-        self.log.info("Name: %s", name)
-        self.log.info("swp? %s", name[-4:])
+        self.log.debug("Name: %s", name)
+        self.log.debug("swp? %s", name[-4:])
         if name[-4:] == ".swp":
             self._add_inode(self.__get_path(parent_inode, name),
                             self.__get_node_by_name(name[1:-4])["data"])
-            self.log.info("Found .swp")
+            self.log.debug("Found .swp")
 
             # This was needed for finding the non swp file.
             # name = name[1:-4]
             # log.info("New name: %s", name)
+        self.log.debug("Trying to find existing inode")
         for key, node in self.files.items():
             if node["name"] == name.encode("utf-8"):
-                self.log.info("FOUND")
-                return self._getattr(key)
+                self.log.debug("%s, %s have the same name",
+                               node["name"], name.encode("utf-8"))
+                try:
+                    self.log.debug("parent path: %s",
+                                   self.__get_path_inode(parent_inode))
+                    if self.__get_path_inode(parent_inode) == node["path"]:
+                        self.debug("Found existing inode %d", key)
+                        return self._getattr(key)
+                except:
+                    raise Exception("Couldn't get parent inode")
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
             # return self._getattr(self._add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
@@ -270,19 +306,26 @@ class TestFs(pyfuse3.Operations):
         self.log.info("dirpath: %s", dir_path)
         arr = {k: v for k, v in self.files.items() if v["path"] == dir_path}
         self.log.info("items in dir: %d", len(arr))
-        for key, value in arr.items():
-            self.log.info("Key: %s, Value_name: %s", key, value["name"])
-            if key <= start_id:
-                continue
+        try:
+            for key, value in arr.items():
+                self.log.debug("Key: %s, Value_name: %s", key, value["name"])
+                if key <= start_id:
+                    continue
 
-            # TODO: Right now: omitting swap files.
-            if value["type"] == "swp":
-                self.log.info("swp: %s", value["name"])
-                continue
-            if value["unlink"] is True:
-                continue
-            if not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
-                break
+                log.debug("before swp check")
+                # TODO: Right now: omitting swap files.
+                if value["type"] == "swp":
+                    self.log.debug("swp: %s", value["name"])
+                    continue
+                log.debug("before unlink check")
+                if value["unlink"] is True:
+                    continue
+                log.debug("before readdir of %s", value["name"])
+                if not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
+                    break
+            self.debug("after readdir")
+        except:
+            raise Exception("Readdir failed.")
         return
 
     async def rmdir(self, parent_inode, name, ctx):
@@ -500,7 +543,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("inode: %d", idx)
 
         # unlink is not prohibited to delete a item -> forget method
-        #del self.files[idx]
+        # del self.files[idx]
 
         # TODO: forget path(s)
 
