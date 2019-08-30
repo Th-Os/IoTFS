@@ -46,10 +46,20 @@ class MQTT(mqtt.Client):
 
         payload = json.loads(payload)
 
+        self.log.debug(
+            "going to open files (%d) and write in them.", len(payload.items()))
+
         for key, value in payload.items():
             self.log.info("Key: %s, value: %s", key, value)
-            with open(os.path.join(directory, key), 'w+') as f:
-                f.write(value)
+            try:
+                # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
+                self.log.debug("will open: %s", str(
+                    os.path.join(directory, key)))
+                # with open(os.path.join(directory, key), 'w+') as f:
+                #    self.log.debug("Will write %s to %s", value, f)
+                # f.write(value)
+            except Exception as e:
+                self.log.error(e.with_traceback().msg)
 
     def run(self):
         self.connect("localhost", 1883, 60)

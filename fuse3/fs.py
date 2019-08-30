@@ -123,6 +123,7 @@ class TestFs(pyfuse3.Operations):
         except:
             raise Exception(
                 "Failed to combine path and node of inode %d" % inode)
+        self.log.debug("Result path: %s", path)
         return path
 
     def __get_node_by_name(self, name):
@@ -208,6 +209,7 @@ class TestFs(pyfuse3.Operations):
             except:
                 raise FUSEError(errno.ENOENT)
 
+        self.log.debug("set entry attributes")
         # current time in nanoseconds
         stamp = int(time.time() * 1e9)
         entry.st_atime_ns = stamp
@@ -216,9 +218,11 @@ class TestFs(pyfuse3.Operations):
         entry.st_gid = os.getgid()
         entry.st_uid = os.getuid()
         entry.st_ino = inode
+        self.log.debug("done setting entry attributes")
 
         # if new node -> add attr field with entry
         if node is not None:
+            self.log.debug("Node is not in 'files'")
             self.files[inode]["attr"] = entry
         return entry
 
@@ -254,6 +258,7 @@ class TestFs(pyfuse3.Operations):
                 try:
                     self.log.debug("parent path: %s",
                                    self.__get_path_inode(parent_inode))
+                    self.log.debug("node path: %s", node["path"])
                     if self.__get_path_inode(parent_inode) == node["path"]:
                         self.debug("Found existing inode %d", key)
                         return self._getattr(key)
@@ -312,18 +317,18 @@ class TestFs(pyfuse3.Operations):
                 if key <= start_id:
                     continue
 
-                log.debug("before swp check")
+                self.log.debug("before swp check")
                 # TODO: Right now: omitting swap files.
                 if value["type"] == "swp":
                     self.log.debug("swp: %s", value["name"])
                     continue
-                log.debug("before unlink check")
-                if value["unlink"] is True:
+                self.log.debug("before unlink check")
+                if "unlink" in value and value["unlink"] is True:
                     continue
-                log.debug("before readdir of %s", value["name"])
+                self.log.debug("before readdir of %s", value["name"])
                 if not pyfuse3.readdir_reply(token, value["name"], await self.getattr(key), key):
                     break
-            self.debug("after readdir")
+            self.log.debug("after readdir")
         except:
             raise Exception("Readdir failed.")
         return
@@ -403,9 +408,13 @@ class TestFs(pyfuse3.Operations):
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
         '''
-        inode = self._add_inode(self.__get_path(parent_inode, name))
-        attr = self._getattr(inode)
-
+        try:
+            inode = self._add_inode(self.__get_path(parent_inode, name))
+            attr = self._getattr(inode)
+            self.log.debug("got attributes for inode %d", inode)
+            self.log.debug(str(attr))
+        except:
+            raise Exception("Create Failed")
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -561,10 +570,11 @@ class TestFs(pyfuse3.Operations):
 
     async def write(self, inode, off, buf):
         self.log.info("----")
-        self.log.info("write: %d", inode)
+        self.log.info("write inode: %d", inode)
         self.log.info("----")
         self.log.info("offset: %d", off)
-        self.log.info("buffer: %s", buf)
+        # Too big to log.
+        self.log.debug("buffer: %s", buf)
 
         '''Write *buf* into *fh* at *off*
         *fh* will by an integer filehandle returned by a prior `open` or
@@ -579,9 +589,12 @@ class TestFs(pyfuse3.Operations):
             output = ""
             node = self.files[inode]
             data = node["data"].decode("utf-8")
+            self.log.debug("data: %s", data)
             buffer = buf.decode("utf-8")
-
+            self.log.debug("buffer: %s", buffer)
             output = data[:off] + buffer + data[off:]
+            self.log.debug("output: %s", output)
+            self.log.debug("current data: %s", self.files[inode]["data"])
             self.files[inode]["data"] = output.encode("utf-8")
 
         except:
@@ -647,8 +660,13 @@ def start(mountpoint, debug, debug_fuse):
     pyfuse3.init(testfs, mountpoint, fuse_options)
     try:
         trio.run(pyfuse3.main)
-    except:
+    except BaseException:
+        logging.getLogger("pyfuse3").debug("BaseException occured")
         pyfuse3.close(unmount=False)
-        raise
-
-    pyfuse3.close()
+        raise BaseException("BaseException")
+    except Exception:
+        logging.getLogger("pyfuse3").debug("BaseException occured")
+        pyfuse3.close(unmount=False)
+        raise Exception("Exception")
+    finally:
+        pyfuse3.close()
