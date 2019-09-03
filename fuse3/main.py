@@ -47,6 +47,8 @@ def async_main():
 def main():
     options = parse_args()
     log = utils.init_logging(debug=options.debug, with_file=False)
+    fs.start(options.mountpoint, options.debug, options.debug_fuse)
+    '''
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             executor.submit(fs.start, options.mountpoint,
@@ -55,6 +57,7 @@ def main():
 
     except (BaseException, Exception) as e:
         log.error(e)
+    '''
 
 
 if __name__ == "__main__":

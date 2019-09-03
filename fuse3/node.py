@@ -1,0 +1,110 @@
+BYTE_ENCODING = 0
+UTF_8_ENCODING = 1
+
+FILE_TYPE = 0
+DIR_TYPE = 1
+SWAP_TYPE = 2
+
+
+class Node():
+
+    def __init__(self, name, path, file_type, attr, unlink):
+        self.set_name(name)
+        self.path = path
+        self.type = file_type
+        self.attr = attr
+        self.unlink = unlink
+
+    def set_name(self, name):
+        if type(name) is str:
+            name = name.encode("utf-8")
+        self.name = name
+
+    def get_name(self, encoding=BYTE_ENCODING):
+        if encoding == BYTE_ENCODING:
+            return self.name
+        else:
+            return self.name.decode("utf-8")
+
+    def set_path(self, path):
+        self.path = path
+
+    def get_path(self):
+        return self.path
+
+    def get_full_path(self):
+        return self.path + self.get_name(encoding=UTF_8_ENCODING)
+
+    def set_type(self, file_type):
+        self.type = file_type
+
+    def get_type(self):
+        return self.type
+
+    def set_attr(self, attr):
+        self.attr = attr
+
+    def get_attr(self):
+        return self.attr
+
+    def has_attr(self):
+        return self.attr is not None
+
+    def is_unlink(self):
+        if self.unlink is None:
+            return False
+        return self.unlink
+
+    def set_unlink(self, unlink):
+        self.unlink = unlink
+
+    def to_dict(self):
+        print({
+            "name": self.name,
+            "path": self.path,
+            "type": self.type,
+            "attr": self.attr,
+            "unlink": self.unlink
+        })
+        return {
+            "name": self.name,
+            "path": self.path,
+            "type": self.type,
+            "attr": self.attr,
+            "unlink": self.unlink
+        }
+
+
+class File(Node):
+
+    def __init__(self, name, path, data="", attr=None, unlink=False):
+        super().__init__(name, path, FILE_TYPE, attr=attr, unlink=unlink)
+        self.set_data(data)
+
+    def set_data(self, data):
+        if data is None:
+            data = ""
+        if type(data) is str:
+            data = data.encode("utf-8")
+        self.data = data
+
+    def get_data(self, encoding=BYTE_ENCODING):
+        if encoding == BYTE_ENCODING:
+            return self.data
+        else:
+            return self.data.decode("utf-8")
+
+    def get_data_size(self, encoding=UTF_8_ENCODING):
+        return len(self.get_data(encoding=encoding))
+
+    def to_dict(self):
+        return {
+            **super().to_dict(),
+            "data": self.data
+        }
+
+
+class Directory(Node):
+
+    def __init__(self, name, path, attr=None, unlink=False):
+        super().__init__(name, path, DIR_TYPE, attr=attr, unlink=unlink)

@@ -55,9 +55,10 @@ class MQTT(mqtt.Client):
                 # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
                 self.log.debug("will open: %s", str(
                     os.path.join(directory, key)))
-                # with open(os.path.join(directory, key), 'w+') as f:
-                #    self.log.debug("Will write %s to %s", value, f)
-                # f.write(value)
+                with open(os.path.join(directory, key), 'w+') as f:
+                    self.log.debug("Will write %s to %s", value, f)
+                    size = f.write(value)
+                    self.log.debug("Wrote %d characters", size)
             except Exception as e:
                 self.log.error(e.with_traceback().msg)
 
