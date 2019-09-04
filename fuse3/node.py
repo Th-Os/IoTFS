@@ -59,20 +59,15 @@ class Node():
         self.unlink = unlink
 
     def to_dict(self):
-        print({
-            "name": self.name,
-            "path": self.path,
-            "type": self.type,
-            "attr": self.attr,
-            "unlink": self.unlink
-        })
         return {
             "name": self.name,
             "path": self.path,
             "type": self.type,
-            "attr": self.attr,
             "unlink": self.unlink
         }
+
+    def __repr__(self):
+        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3})".format(self.name, self.path, self.type, self.unlink)
 
 
 class File(Node):
@@ -80,6 +75,8 @@ class File(Node):
     def __init__(self, name, path, data="", attr=None, unlink=False):
         super().__init__(name, path, FILE_TYPE, attr=attr, unlink=unlink)
         self.set_data(data)
+        if self.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
+            self.set_type(SWAP_TYPE)
 
     def set_data(self, data):
         if data is None:
@@ -102,6 +99,9 @@ class File(Node):
             **super().to_dict(),
             "data": self.data
         }
+
+    def __repr__(self):
+        return "File(name: {0}, path: {1}, type: {2}, data: {3}, unlink: {4})".format(self.name, self.path, self.type, self.data, self.unlink)
 
 
 class Directory(Node):

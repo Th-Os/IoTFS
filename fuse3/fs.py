@@ -47,8 +47,8 @@ class TestFs(pyfuse3.Operations):
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
-    def _add_inode(self, path, node_type=FILE_TYPE, data=None):
-        self.log.info('_add_node for %s', path)
+    def __add_inode(self, path, node_type=FILE_TYPE, data=""):
+        self.log.info('__add_inode for %s', path)
         '''
         if len(self.nodes) == 0:
             inode = pyfuse3.ROOT_INODE + 1
@@ -66,30 +66,19 @@ class TestFs(pyfuse3.Operations):
             path = path[:-len(name)]
             self.log.info("name: %s, path: %s", name, path)
 
-            if node_type == FILE_TYPE:
+            if node_type == FILE_TYPE or node_type == SWAP_TYPE:
                 self.nodes[inode] = File(name, path, data)
             else:
                 self.nodes[inode] = Directory(name, path)
             self.log.info(self.nodes)
         return inode
 
-    def _add_path(self, inode, path, node_type, data=None):
-        self.log.info('_add_path for %d, %s', inode, path)
-
-        # TODO: Implement Change Path
-        """
-        val = self.nodes[inode]
-        if isinstance(val, set):
-            val.add(path)
-        elif val != path:
-            self.nodes[inode] = {path, val}
-        """
-
     def __get_path(self, parent_inode, name):
+        self.log.debug("__get_path for inode with name %s", name)
         if type(name) is not str:
             name = name.decode("utf-8")
         else:
-            self.log.debug("Path is already encoded in utf-8")
+            self.log.debug("node name is already encoded in utf-8")
         try:
             if parent_inode == pyfuse3.ROOT_INODE:
                 path = os.path.join(".", name)
@@ -101,8 +90,8 @@ class TestFs(pyfuse3.Operations):
                         "utf-8"), name)
                 self.log.info("new path: %s", path)
             return path
-        except:
-            raise Exception("Failed getting path.")
+        except Exception as e:
+            self.log.error(e.msg)
 
     # Needs some refactoring... Is this even needed?
     def __get_path_inode(self, inode):
@@ -130,9 +119,9 @@ class TestFs(pyfuse3.Operations):
                 return self.nodes[idx]
             self.log.debug("failed")
         # nano for new file -> results in didnt find any
-        # TODO: DO THIS NEXT
-        self.log.debug("didn't find any")
-        raise Exception("Found no node for name %s", name)
+        # TODO: What behavior would be appropriate for no found node?
+        self.log.error("didn't find any")
+        return None
 
     def __get_index_by_name(self, name):
         self.log.info("get node by name: %s", name)
@@ -141,7 +130,7 @@ class TestFs(pyfuse3.Operations):
                 return idx
         raise Exception("Found no node for name %s", name)
 
-    def _getattr(self, inode):
+    def __getattr(self, inode):
         '''
         stat manpage
             dev_t     st_dev;         /* ID of device containing file */
@@ -187,32 +176,25 @@ class TestFs(pyfuse3.Operations):
                     node = self.nodes[inode]
                     self.log.debug("got node from nodes")
                     self.log.debug(node.to_dict())
-                    if node.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
-                        node.set_type(SWAP_TYPE)
                 else:
                     self.log.error("Inode not in nodes!")
                     raise Exception("Didn't find inode in nodes.")
 
                 # debug this
                 if node.get_type() == DIR_TYPE:
-                    self.log.debug("This is a directory")
+                    self.log.debug("This is a directory.")
                     entry.st_mode = (stat.S_IFDIR | 0o755)
                     entry.st_size = 0
-                elif node.get_type() == SWAP_TYPE:
-                    self.log.warn("its a swap FILE !!!")
-                    entry.st_mode = (stat.S_IFREG | 0o666)
-                    entry.st_size = node.get_data_size(encoding=UTF_8_ENCODING)
-                elif node.get_type() == FILE_TYPE:
+                elif node.get_type() == FILE_TYPE or node.get_type() == SWAP_TYPE:
+                    self.log.debug("This is a file of type %i.", node.get_type())
                     entry.st_mode = (stat.S_IFREG | 0o666)
                     entry.st_size = node.get_data_size(encoding=UTF_8_ENCODING)
                     self.log.debug("size of file: %d", entry.st_size)
                 else:
                     self.log.error("Found no corresponding type.")
-                    raise Exception("Found no corresponding type.")
             except:
                 raise FUSEError(errno.ENOENT)
 
-        self.log.debug("set entry attributes")
         # current time in nanoseconds
         stamp = int(time.time() * 1e9)
         entry.st_atime_ns = stamp
@@ -221,39 +203,32 @@ class TestFs(pyfuse3.Operations):
         entry.st_gid = os.getgid()
         entry.st_uid = os.getuid()
         entry.st_ino = inode
-        self.log.debug("done setting entry attributes")
+        node.set_attr(entry)
+        self.nodes[inode] = node
 
-        # if node without attributes -> add attr field with entry
-        if node is not None:
-            self.log.debug("Node is not in 'files' or has st_ino of 0")
-            node.set_attr(entry)
-            self.nodes[inode] = node
+        self.log.debug("Resulting node of getattr call:")
+        self.log.debug(node)
+
         return entry
 
     async def getattr(self, inode, ctx=None):
         self.log.info("----")
         self.log.info("getattr: %i", inode)
         self.log.info("----")
-        return self._getattr(inode)
+        return self.__getattr(inode)
 
     async def lookup(self, parent_inode, name, ctx=None):
         self.log.info("----")
         self.log.info("lookup: %s", name)
         self.log.info("----")
-
+        self.log.debug("current nodes")
+        self.log.debug(self.nodes)
         # TODO: parent_inode save in dict and evaluate here
         self.log.info("Parent Inode: %i", parent_inode)
         name = name.decode("utf-8")
         self.log.debug("Name: %s", name)
         self.log.debug("swp? %s", name[-4:])
-        if name[-4:] == ".swp":
-            self._add_inode(self.__get_path(parent_inode, name),
-                            self.__get_node_by_name(name[1:-4]).get_data())
-            self.log.debug("Found .swp")
 
-            # This was needed for finding the non swp file.
-            # name = name[1:-4]
-            # log.info("New name: %s", name)
         self.log.debug("Trying to find existing inode")
         for key, node in self.nodes.items():
             if node.get_name(encoding=UTF_8_ENCODING) == name:
@@ -265,12 +240,20 @@ class TestFs(pyfuse3.Operations):
                     self.log.debug("node path: %s", node.get_path)
                     if self.__get_path_inode(parent_inode) == node.get_path():
                         self.debug("Found existing inode %d", key)
-                        return self._getattr(key)
+                        return self.__getattr(key)
                 except:
-                    raise Exception("Couldn't get parent inode")
+                    self.log.error("Couldn't get parent inode")
+        if name[-4:] == ".swp":
+            self.log.debug("Found .swp")
+            origin_name = name[1:-4]
+            node = self.__get_node_by_name(origin_name)
+            if node is None:
+                self.log.debug("Found no corresponing file to swap %s with name %s", name, origin_name)
+                node = self.nodes[self.__add_inode(self.__get_path(parent_inode, origin_name))]
+            return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name), data=node.get_data()))
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
-            # return self._getattr(self._add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
+            # return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
         # new error
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
@@ -284,7 +267,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("mkdir: %s", name)
         self.log.info("----")
-        return self._getattr(self._add_inode(self.__get_path(parent_inode, name), node_type=DIR_TYPE))
+        return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name), node_type=DIR_TYPE))
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -292,7 +275,7 @@ class TestFs(pyfuse3.Operations):
             os.chown(path, ctx.uid, ctx.gid)
         except OSError as exc:
             raise FUSEError(exc.errno)
-        attr = self._getattr(path=path)
+        attr = self.__getattr(path=path)
         self._add_path(attr.st_ino, path)
         return attr
         """
@@ -318,7 +301,7 @@ class TestFs(pyfuse3.Operations):
         try:
             for key, node in arr.items():
                 self.log.debug("Key: %s, Value_name: %s", key, node.get_name())
-                if key <= start_id:
+                if key < start_id:
                     continue
 
                 self.log.debug("before swp check")
@@ -333,8 +316,9 @@ class TestFs(pyfuse3.Operations):
                 if not pyfuse3.readdir_reply(token, node.get_name(), await self.getattr(key), key):
                     break
             self.log.debug("after readdir")
-        except:
-            raise Exception("Readdir failed.")
+        except Exception as e:
+            self.log.error("Readdir failed.")
+            self.log.error(e.msg)
         return
 
     async def rmdir(self, parent_inode, name, ctx):
@@ -403,6 +387,9 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("create: %s", name)
         self.log.info("----")
+
+        if name.decode("utf-8").endsWith(".swp"):
+            self.log.debug("SWAP FILE IS CREATED")
         '''Create a file with permissions *mode* and open it with *flags*
         *ctx* will be a `RequestContext` instance.
         The method must return a tuple of the form *(fh, attr)*, where *fh* is a
@@ -413,19 +400,24 @@ class TestFs(pyfuse3.Operations):
         the returned inode by one.
         '''
         try:
-            inode = self._add_inode(self.__get_path(parent_inode, name))
-            attr = self._getattr(inode)
+            inode = self.__add_inode(self.__get_path(parent_inode, name))
+            if inode is None:
+                self.log.error("Inode already exists.")
+
+                # Get node by name and path!
+                self.__get_node_by_name()
+            attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
             self.log.debug(str(attr))
         except:
-            raise Exception("Create Failed")
+            self.log.error("Create Failed")
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
             fd = os.open(path, flags | os.O_CREAT | os.O_TRUNC)
         except OSError as exc:
             raise FUSEError(exc.errno)
-        attr = self._getattr(fd=fd)
+        attr = self.__getattr(fd=fd)
         self._add_path(attr.st_ino, path)
         self._inode_fd_map[attr.st_ino] = fd
         self._fd_inode_map[fd] = attr.st_ino
@@ -574,12 +566,11 @@ class TestFs(pyfuse3.Operations):
         '''
 
     async def write(self, inode, off, buf):
+        self.log.info(self.nodes)
         self.log.info("----")
         self.log.info("write inode: %d", inode)
         self.log.info("----")
         self.log.info("offset: %d", off)
-        # Too big to log.
-        self.log.debug("buffer: %s", buf)
 
         '''Write *buf* into *fh* at *off*
         *fh* will by an integer filehandle returned by a prior `open` or
@@ -603,7 +594,7 @@ class TestFs(pyfuse3.Operations):
             self.nodes[inode].set_data(output)
 
         except:
-            raise Exception("Write was not successful")
+            self.log.error("Write was not successful")
         return len(buf)
 
     async def forget(self, inode_list):
