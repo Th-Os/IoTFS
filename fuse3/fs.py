@@ -234,15 +234,12 @@ class TestFs(pyfuse3.Operations):
             if node.get_name(encoding=UTF_8_ENCODING) == name:
                 self.log.debug("%s, %s have the same name",
                                node.get_name(encoding=UTF_8_ENCODING), name)
-                try:
-                    self.log.debug("parent path: %s",
-                                   self.__get_path_inode(parent_inode))
-                    self.log.debug("node path: %s", node.get_path)
-                    if self.__get_path_inode(parent_inode) == node.get_path():
-                        self.debug("Found existing inode %d", key)
-                        return self.__getattr(key)
-                except:
-                    self.log.error("Couldn't get parent inode")
+                self.log.debug("parent path: %s", self.__get_path_inode(parent_inode))
+                self.log.debug("node path: %s", node.get_path)
+                if self.__get_path_inode(parent_inode) == node.get_path():
+                    self.debug("Found existing inode %d", key)
+                    return self.__getattr(key)
+        self.log.debug("Couldn't find inode. Is it a swap file?")
         if name[-4:] == ".swp":
             self.log.debug("Found .swp")
             origin_name = name[1:-4]
@@ -251,17 +248,22 @@ class TestFs(pyfuse3.Operations):
                 self.log.debug("Found no corresponing file to swap %s with name %s", name, origin_name)
                 node = self.nodes[self.__add_inode(self.__get_path(parent_inode, origin_name))]
             return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name), data=node.get_data()))
+        
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
             # return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
         # new error
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
-
-        # If no node is found
-        attr = pyfuse3.EntryAttributes()
-        attr.st_ino = 0
-        return attr
+        self.log.debug("No swap file. Create new one.")
+        path = ""
+        if parent_inode == pyfuse3.ROOT_INODE:
+            path = "/"
+            self.log.debug("Parent inode is root.")
+        else:
+            parent_node = self.nodes[parent_inode]
+            self.log.debug("Parent node: %s", parent_node)
+        return self.__getattr(self.__add_inode(parent_node.get_full_path()))
 
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
@@ -301,7 +303,9 @@ class TestFs(pyfuse3.Operations):
         try:
             for key, node in arr.items():
                 self.log.debug("Key: %s, Value_name: %s", key, node.get_name())
-                if key < start_id:
+                
+                # This could be problematic: < -> results in loop, <= results in false ls
+                if key <= start_id:
                     continue
 
                 self.log.debug("before swp check")
@@ -352,6 +356,7 @@ class TestFs(pyfuse3.Operations):
         # if inode in self._lookup_cnt:
         #    self._forget_path(inode, path)
 
+    # TODO: Not enough data
     async def open(self, inode, flags, ctx):
         self.log.info("----")
         self.log.info("open: %d", inode)
@@ -371,8 +376,9 @@ class TestFs(pyfuse3.Operations):
         self._fd_open_count[fd] = 1
         return fd
         """
-        # if flags & os.O_RDWR or flags & os.O_WRONLY:
-        #    raise pyfuse3.FUSEError(errno.EPERM)
+        if flags & os.O_RDWR or flags & os.O_WRONLY:
+            self.log.error("False permission.")
+            # raise pyfuse3.FUSEError(errno.EPERM)
         return inode
 
     async def read(self, inode, off, size):
@@ -388,8 +394,8 @@ class TestFs(pyfuse3.Operations):
         self.log.info("create: %s", name)
         self.log.info("----")
 
-        if name.decode("utf-8").endsWith(".swp"):
-            self.log.debug("SWAP FILE IS CREATED")
+        if name.decode("utf-8")[-4:] == ".swp":
+            self.log.debug("Creating a swap file.")
         '''Create a file with permissions *mode* and open it with *flags*
         *ctx* will be a `RequestContext` instance.
         The method must return a tuple of the form *(fh, attr)*, where *fh* is a
@@ -400,7 +406,9 @@ class TestFs(pyfuse3.Operations):
         the returned inode by one.
         '''
         try:
+            self.log.debug("Trying to get inode")
             inode = self.__add_inode(self.__get_path(parent_inode, name))
+            self.log.debug("Got inode %d", inode)
             if inode is None:
                 self.log.error("Inode already exists.")
 
@@ -456,7 +464,10 @@ class TestFs(pyfuse3.Operations):
         except OSError as exc:
             raise FUSEError(exc.errno)
         """
-        pass
+        if self.nodes[inode].type == SWAP_TYPE:
+            self.log.debug("deleting %s", self.nodes[inode])
+            del self.nodes[inode]
+        self.log.debug(self.nodes)
 
     async def releasedir(self, inode):
         self.log.info("----")
