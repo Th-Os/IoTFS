@@ -1,3 +1,5 @@
+import os
+
 BYTE_ENCODING = 0
 UTF_8_ENCODING = 1
 
@@ -106,5 +108,14 @@ class File(Node):
 
 class Directory(Node):
 
-    def __init__(self, name, path, attr=None, unlink=False):
+    def __init__(self, name, path, attr=None, unlink=False, root=False):
         super().__init__(name, path, DIR_TYPE, attr=attr, unlink=unlink)
+        self.root = root
+
+    def is_root(self):
+        return self.root
+
+    def get_full_path(self):
+        if self.is_root():
+            return self.path + os.sep
+        return self.path + self.get_name(encoding=UTF_8_ENCODING)

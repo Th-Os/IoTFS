@@ -33,12 +33,12 @@ class TestFs(pyfuse3.Operations):
     supports_dot_lookup = True
     enable_writeback_cache = True
 
-    def __init__(self, debug=False):
+    def __init__(self, mount_point, debug=False):
         super(TestFs, self).__init__()
         self.log = utils.init_logging(self.__class__.__name__, debug)
         self.log.info("Init %s", self.__class__.__name__)
         self.nodes = dict()
-        self.nodes[pyfuse3.ROOT_INODE] = Directory("root", ".")
+        self.nodes[pyfuse3.ROOT_INODE] = Directory("root", os.path.abspath(mount_point), root=True)
 
         self.log.debug("Size of nodes: %d", len(self.nodes))
         # reimplement this into node.py
@@ -47,7 +47,7 @@ class TestFs(pyfuse3.Operations):
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
-    def __add_inode(self, path, node_type=FILE_TYPE, data=""):
+    def __add_inode(self, name, path, node_type=FILE_TYPE, data=""):
         self.log.info('__add_inode for %s', path)
         '''
         if len(self.nodes) == 0:
@@ -60,17 +60,13 @@ class TestFs(pyfuse3.Operations):
 
         # With hardlinks, one inode may map to multiple paths.
         if inode not in self.nodes and inode is not pyfuse3.ROOT_INODE:
-            self.log.info("Found no inode")
-            self.log.info("Create: inode %d, with path: %s", inode, path)
-            name = path.split(os.path.sep)[-1]
-            path = path[:-len(name)]
-            self.log.info("name: %s, path: %s", name, path)
-
+            self.log.debug("Found no inode")
+            self.log.debug("Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == FILE_TYPE or node_type == SWAP_TYPE:
                 self.nodes[inode] = File(name, path, data)
             else:
                 self.nodes[inode] = Directory(name, path)
-            self.log.info(self.nodes)
+            self.log.debug(self.nodes)
         return inode
 
     def __get_path(self, parent_inode, name):
@@ -81,7 +77,7 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("node name is already encoded in utf-8")
         try:
             if parent_inode == pyfuse3.ROOT_INODE:
-                path = os.path.join(".", name)
+                path = os.path.join(self.nodes[parent_inode].get_path(), name)
                 self.log.info("new path: %s", path)
             else:
                 node = self.nodes[parent_inode]
@@ -242,13 +238,16 @@ class TestFs(pyfuse3.Operations):
         self.log.debug("Couldn't find inode. Is it a swap file?")
         if name[-4:] == ".swp":
             self.log.debug("Found .swp")
-            origin_name = name[1:-4]
-            node = self.__get_node_by_name(origin_name)
+
+            # Name of source file: .x.swp -> x
+            src_name = name[1:-4]
+            node = self.__get_node_by_name(src_name)
+            parent_path = self.nodes[parent_inode].get_full_path()
             if node is None:
-                self.log.debug("Found no corresponing file to swap %s with name %s", name, origin_name)
-                node = self.nodes[self.__add_inode(self.__get_path(parent_inode, origin_name))]
-            return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name), data=node.get_data()))
-        
+                self.log.debug("Found no corresponing file to swap %s with name %s", name, src_name)
+                node = self.nodes[self.__add_inode(src_name, parent_path)]
+            return self.__getattr(self.__add_inode(name, parent_path, data=node.get_data()))
+
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
             # return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
@@ -256,20 +255,16 @@ class TestFs(pyfuse3.Operations):
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
         self.log.debug("No swap file. Create new one.")
-        path = ""
-        if parent_inode == pyfuse3.ROOT_INODE:
-            path = "/"
-            self.log.debug("Parent inode is root.")
-        else:
-            parent_node = self.nodes[parent_inode]
-            self.log.debug("Parent node: %s", parent_node)
-        return self.__getattr(self.__add_inode(parent_node.get_full_path()))
+        parent_node = self.nodes[parent_inode]
+        path = parent_node.get_full_path()
+        self.log.debug("Parent node: %s", parent_node)
+        return self.__getattr(self.__add_inode(name, path))
 
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
         self.log.info("mkdir: %s", name)
         self.log.info("----")
-        return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name), node_type=DIR_TYPE))
+        return self.__getattr(self.__add_inode(name, self.nodes[parent_inode].get_full_path(), node_type=DIR_TYPE))
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -292,18 +287,15 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("readdir: %d", inode)
         self.log.info("----")
-        self.log.info("start_id: %s", start_id)
-        if inode == pyfuse3.ROOT_INODE:
-            dir_path = "./"
-        else:
-            dir_path = self.nodes[inode].get_full_path() + os.path.sep
-        self.log.info("dirpath: %s", dir_path)
+        self.log.debug("start_id: %s", start_id)
+        dir_path = self.nodes[inode].get_full_path()
+        self.log.debug("dirpath: %s", dir_path)
         arr = {k: node for k, node in self.nodes.items() if node.get_path() == dir_path}
-        self.log.info("items in dir: %d", len(arr))
+        self.log.debug("items in dir: %d", len(arr))
         try:
             for key, node in arr.items():
                 self.log.debug("Key: %s, Value_name: %s", key, node.get_name())
-                
+
                 # This could be problematic: < -> results in loop, <= results in false ls
                 if key <= start_id:
                     continue
@@ -315,6 +307,7 @@ class TestFs(pyfuse3.Operations):
                     continue
                 self.log.debug("before unlink check")
                 if node.is_unlink() is True:
+                    self.log.debug("Node %s is unlinked.", node.get_name())
                     continue
                 self.log.debug("before readdir of %s", node.get_name())
                 if not pyfuse3.readdir_reply(token, node.get_name(), await self.getattr(key), key):
@@ -407,7 +400,7 @@ class TestFs(pyfuse3.Operations):
         '''
         try:
             self.log.debug("Trying to get inode")
-            inode = self.__add_inode(self.__get_path(parent_inode, name))
+            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path())
             self.log.debug("Got inode %d", inode)
             if inode is None:
                 self.log.error("Inode already exists.")
@@ -638,15 +631,15 @@ class TestFs(pyfuse3.Operations):
                 pass
 
 
-async def start_async(mountpoint, debug, debug_fuse):
+async def start_async(mount_point, debug, debug_fuse):
     utils.init_logging("pyfuse3", debug_fuse)
 
-    testfs = TestFs(debug)
+    testfs = TestFs(mount_point, debug)
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=iotfs')
     if debug_fuse:
         fuse_options.add('debug')
-    pyfuse3.init(testfs, mountpoint, fuse_options)
+    pyfuse3.init(testfs, mount_point, fuse_options)
     try:
         await pyfuse3.main()
     except:
@@ -656,15 +649,15 @@ async def start_async(mountpoint, debug, debug_fuse):
     pyfuse3.close()
 
 
-def start(mountpoint, debug, debug_fuse):
+def start(mount_point, debug, debug_fuse):
     utils.init_logging("pyfuse3", debug_fuse)
 
-    testfs = TestFs(debug)
+    testfs = TestFs(mount_point, debug)
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=iotfs')
     if debug_fuse:
         fuse_options.add('debug')
-    pyfuse3.init(testfs, mountpoint, fuse_options)
+    pyfuse3.init(testfs, mount_point, fuse_options)
     try:
         trio.run(pyfuse3.main)
     except BaseException:
