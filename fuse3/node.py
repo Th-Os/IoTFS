@@ -119,3 +119,6 @@ class Directory(Node):
         if self.is_root():
             return self.path + os.sep
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
+
+    def __repr__(self):
+        return "Directory(name: {0}, path: {1}, type: {2}, unlink: {3}, root: {4})".format(self.name, self.path, self.type, self.unlink, self.root)

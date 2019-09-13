@@ -214,6 +214,21 @@ class TestFs(pyfuse3.Operations):
         return self.__getattr(inode)
 
     async def lookup(self, parent_inode, name, ctx=None):
+        '''Look up a directory entry by name and get its attributes.
+        This method should return an `EntryAttributes` instance for the
+        directory entry *name* in the directory with inode *parent_inode*.
+        If there is no such entry, the method should either return an
+        `EntryAttributes` instance with zero ``st_ino`` value (in which case
+        the negative lookup will be cached as specified by ``entry_timeout``),
+        or it should raise `FUSEError` with an errno of `errno.ENOENT` (in this
+        case the negative result will not be cached).
+        *ctx* will be a `RequestContext` instance.
+        The file system must be able to handle lookups for :file:`.` and
+        :file:`..`, no matter if these entries are returned by `readdir` or not.
+        (Successful) execution of this handler increases the lookup count for
+        the returned inode by one.
+        '''
+
         self.log.info("----")
         self.log.info("lookup: %s", name)
         self.log.info("----")
@@ -254,11 +269,21 @@ class TestFs(pyfuse3.Operations):
         # new error
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
-        self.log.debug("No swap file. Create new one.")
+
+        '''
+        This creates a inode -> not good!
         parent_node = self.nodes[parent_inode]
         path = parent_node.get_full_path()
         self.log.debug("Parent node: %s", parent_node)
         return self.__getattr(self.__add_inode(name, path))
+        '''
+
+        attr = pyfuse3.EntryAttributes()
+        attr.st_ino = 0
+
+        return attr
+
+
 
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
