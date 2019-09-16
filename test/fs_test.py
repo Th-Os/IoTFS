@@ -31,7 +31,7 @@ def test_dir():
     os.makedirs(os.path.join(ROOT_DIR, "dir_two", "dir_three"), exist_ok=True)
 
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_one"))
-    assert os.path.isdir("./dir/dir_two")
+    assert os.path.isdir(os.path.join(ROOT_DIR, "dir_two"))
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_two", "dir_three"))
 
     os.removedirs(os.path.join(ROOT_DIR, "dir_one"))

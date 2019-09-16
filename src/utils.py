@@ -1,12 +1,13 @@
 import logging
 from sys import stdout
+import os
 
 
 def init_logging(name="root", debug=False, with_file=True):
     formatter = logging.Formatter('[%(name)s] - %(asctime)s.%(msecs)03d %(threadName)s: '
                                   '%(message)s', datefmt="%Y-%m-%d %H:%M:%S")
     if with_file:
-        fh = logging.FileHandler(name + ".log")
+        fh = logging.FileHandler(os.path.join("..", name + ".log"))
     sh = logging.StreamHandler(stream=stdout)
 
     if with_file:

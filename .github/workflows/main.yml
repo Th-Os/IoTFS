@@ -39,6 +39,12 @@ jobs:
         run: |
           mkdir dir
           python3 ./src/main.py ../dir --debug-fuse --debug
+      - name: Application status
+        run: |
+          ls
+          cat pyfuse3.log
+          cat TestFs.log
+          cat MQTT.log
       - name: Test with pytest
         run: |
           pip install pytest
