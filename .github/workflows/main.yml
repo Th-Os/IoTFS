@@ -38,7 +38,7 @@ jobs:
       - name: Start application
         run: |
           mkdir dir
-          python3 ./src/main.py ../dir --debug-fuse --debug
+          python3 ./src/main.py dir --debug-fuse --debug
       - name: Application status
         run: |
           ls
