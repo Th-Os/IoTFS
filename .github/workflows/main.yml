@@ -16,12 +16,13 @@ jobs:
         with:
           python-version: 3.5
       - name: Installing fuse
-        run: sudo apt-get install ninja-build
-        run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
-        run: pip install meson
-        run: mkdir test
-        run: ls
-        run: ls; mkdir build; cd build; ls; meson ..; ls; ninja; sudo ninja install
+        run: |
+          sudo apt-get install ninja-build
+          wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
+          pip install meson
+          mkdir test
+          ls
+          ls; mkdir build; cd build; ls; meson ..; ls; ninja; sudo ninja install
       - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Install dependencies
