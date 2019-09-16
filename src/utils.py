@@ -13,7 +13,7 @@ def init_logging(name="root", debug=False, with_file=True):
         fh.setFormatter(formatter)
     sh.setFormatter(formatter)
 
-    logger = logging.getLogger() if name is "root" else logging.getLogger(name)
+    logger = logging.getLogger() if name == "root" else logging.getLogger(name)
 
     if len(logger.handlers) > 0:
         logger.handlers = []
