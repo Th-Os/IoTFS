@@ -1,13 +1,10 @@
 from argparse import ArgumentParser
-import fs
 import trio
-import logging
 import concurrent.futures
 
+import fs
 import mqtt
 import utils
-
-log = logging.getLogger()
 
 
 def parse_args():
@@ -25,6 +22,7 @@ def parse_args():
 
 
 async def start(options):
+    log = utils.init_logging(debug=options.debug, with_file=False)
     async with trio.open_nursery() as nursery:
         log.debug("parent: spawning child1...")
         nursery.start_soon(mqtt.start, options.mountpoint, options.debug)
@@ -40,7 +38,6 @@ async def start(options):
 
 def async_main():
     options = parse_args()
-    log = utils.init_logging(debug=options.debug, with_file=False)
     trio.run(start, options)
 
 
