@@ -283,8 +283,6 @@ class TestFs(pyfuse3.Operations):
 
         return attr
 
-
-
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
         self.log.info("mkdir: %s", name)
