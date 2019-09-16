@@ -12,8 +12,8 @@ jobs:
 
     steps:
       - uses: actions/bin/sh@master
-      - run: apt-get install libfuse-dev
-      - run: apt-get install ninja-build
+      - run: sudo apt-get install libfuse-dev
+      - run: sudo apt-get install ninja-build
       - run: dpkg --get-selections | grep fuse
       - run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
       - uses: actions/checkout@master
@@ -25,7 +25,7 @@ jobs:
       - run: mkdir build; cd build
       - run: meson ..
       - run: ninja
-      - run: ninja install
+      - run: sudo ninja install
       - run: cd ..
       - name: Install dependencies
         run: |
