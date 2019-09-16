@@ -39,6 +39,7 @@ async def start(options):
 def async_main():
     options = parse_args()
     trio.run(start, options)
+    log.info("Starting asynchronously.")
 
 
 def main():

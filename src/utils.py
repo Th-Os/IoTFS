@@ -1,5 +1,6 @@
 import logging
 from sys import stdout
+import os
 
 
 def init_logging(name="root", debug=False, with_file=True):
@@ -15,7 +16,7 @@ def init_logging(name="root", debug=False, with_file=True):
         fh.setFormatter(formatter)
     sh.setFormatter(formatter)
 
-    logger = logging.getLogger() if name is "root" else logging.getLogger(name)
+    logger = logging.getLogger() if name == "root" else logging.getLogger(name)
 
     if len(logger.handlers) > 0:
         logger.handlers = []
@@ -29,7 +30,8 @@ def init_logging(name="root", debug=False, with_file=True):
         logger.addHandler(fh)
     logger.addHandler(sh)
 
-    # duplicate logs: https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
+    # duplicate logs:
+    # https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
     logger.propagate = False
 
     return logger

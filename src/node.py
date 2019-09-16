@@ -103,7 +103,8 @@ class File(Node):
         }
 
     def __repr__(self):
-        return "File(name: {0}, path: {1}, type: {2}, data: {3}, unlink: {4})".format(self.name, self.path, self.type, self.data, self.unlink)
+        return "File(name: {0}, path: {1}, type: {2}, data: {3}, unlink: {4})".format(self.name, self.path, self.type,
+                                                                                      self.data, self.unlink)
 
 
 class Directory(Node):
@@ -121,4 +122,5 @@ class Directory(Node):
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
 
     def __repr__(self):
-        return "Directory(name: {0}, path: {1}, type: {2}, unlink: {3}, root: {4})".format(self.name, self.path, self.type, self.unlink, self.root)
+        return "Directory(name: {0}, path: {1}, type: {2}, unlink: {3}, root: {4})".format(
+            self.name, self.path, self.type, self.unlink, self.root)
