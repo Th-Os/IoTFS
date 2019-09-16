@@ -11,18 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/bin/sh@master
-      - run: sudo apt-cache search "fuse3"
-      - run: sudo apt-get install ninja-build
-      - run: dpkg --get-selections | grep fuse
-      - run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
-      - uses: actions/checkout@master
       - name: Set up Python 3.5
         uses: actions/setup-python@master
         with:
           python-version: 3.5
-      - run: pip install meson
-      - run: mkdir build; cd build; meson ..; ninja; sudo ninja install
+      - name: Installing fuse
+        run: sudo apt-get install ninja-build
+        run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
+        run: pip install meson
+        run: mkdir test
+        run: ls
+        run: ls; mkdir build; cd build; ls; meson ..; ls; ninja; sudo ninja install
+      - name: Checkout IoTFS
+        uses: actions/checkout@master
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
