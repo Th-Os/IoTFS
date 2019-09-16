@@ -15,27 +15,24 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.5
-      - name: Installing fuse
+      - name: Installing fuse # Create new action for this -> with statement
         run: |
           sudo apt-get install ninja-build
           wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
           pip install meson
           tar xf fuse-3.6.2.tar.xz
-          ls
           cd fuse-3.6.2; mkdir build; cd build; meson ..; ninja; sudo ninja install
+          # sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.3.6.2 /lib/x86_64-linux-gnu/libfuse.so.3
       - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Lint with flake8
+      - name: Lint with pep8
         run: |
-          pip install flake8
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 ./src --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          pip install pep8
+          pep8 ./src
       - name: Test with pytest
         run: |
           pip install pytest
