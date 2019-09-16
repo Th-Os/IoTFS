@@ -4,12 +4,21 @@ on:
   push:
     branches:
       - dev
+      - test_actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Installing fuse3
+      - uses: actions/bin/sh@master
+      - args:
+          [
+            "dpkg --get-selections | grep fuse",
+            "wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz",
+          ]
+      - name: Checkout current repository.
       - uses: actions/checkout@v1
       - name: Set up Python 3.5
         uses: actions/setup-python@v1
