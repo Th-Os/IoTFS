@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - uses: actions/bin/sh@master
-      - run: sudo apt-get install libfuse-dev
+      - run: sudo apt-get install fuse3
       - run: sudo apt-get install ninja-build
       - run: dpkg --get-selections | grep fuse
       - run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
@@ -22,11 +22,7 @@ jobs:
         with:
           python-version: 3.5
       - run: pip install meson
-      - run: mkdir build; cd build
-      - run: meson ..
-      - run: ninja
-      - run: sudo ninja install
-      - run: cd ..
+      - run: mkdir build; cd build; meson ..; ninja; sudo ninja install
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
