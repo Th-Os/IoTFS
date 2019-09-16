@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - uses: actions/bin/sh@master
-      - run: sudo apt-get install fuse3
+      - run: sudo apt-cache search "fuse3"
       - run: sudo apt-get install ninja-build
       - run: dpkg --get-selections | grep fuse
       - run: wget https://github.com/libfuse/libfuse/releases/download/fuse-3.6.2/fuse-3.6.2.tar.xz
