@@ -27,7 +27,8 @@ def init_logging(name="root", debug=False, with_file=True):
         logger.addHandler(fh)
     logger.addHandler(sh)
 
-    # duplicate logs: https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
+    # duplicate logs:
+    # https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
     logger.propagate = False
 
     return logger

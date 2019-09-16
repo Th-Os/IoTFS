@@ -10,9 +10,7 @@ import errno
 import logging
 import stat
 import time
-from argparse import ArgumentParser
 import os
-import sys
 from collections import defaultdict
 
 from pyfuse3 import FUSEError
@@ -100,7 +98,8 @@ class TestFs(pyfuse3.Operations):
             return self.__get_path_inode(pyfuse3.ROOT_INODE)
         try:
             path = self.nodes[inode].get_full_path() + os.path.sep
-        except:
+        except Exception as e:
+            self.log.error(e)
             raise Exception(
                 "Failed to combine path and node of inode %d" % inode)
         self.log.debug("Result path: %s", path)
@@ -188,7 +187,8 @@ class TestFs(pyfuse3.Operations):
                     self.log.debug("size of file: %d", entry.st_size)
                 else:
                     self.log.error("Found no corresponding type.")
-            except:
+            except Exception as e:
+                self.log.error(e)
                 raise FUSEError(errno.ENOENT)
 
         # current time in nanoseconds
@@ -433,7 +433,8 @@ class TestFs(pyfuse3.Operations):
             attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
             self.log.debug(str(attr))
-        except:
+        except Exception as e:
+            self.log.error(e)
             self.log.error("Create Failed")
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
@@ -620,7 +621,8 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("current data: %s", self.nodes[inode].get_data())
             self.nodes[inode].set_data(output)
 
-        except:
+        except Exception as e:
+            self.log.error(e)
             self.log.error("Write was not successful")
         return len(buf)
 
@@ -665,9 +667,12 @@ async def start_async(mount_point, debug, debug_fuse):
     pyfuse3.init(testfs, mount_point, fuse_options)
     try:
         await pyfuse3.main()
-    except:
+    except BaseException:
+        logging.getLogger("pyfuse3").debug("BaseException occured")
         pyfuse3.close(unmount=False)
-        raise
+    except Exception:
+        logging.getLogger("pyfuse3").debug("Exception occured")
+        pyfuse3.close(unmount=False)
 
     pyfuse3.close()
 
