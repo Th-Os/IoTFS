@@ -33,6 +33,10 @@ jobs:
         run: |
           pip install flake8
           flake8 ./src --max-line-length 120
+      - name: Start application
+        run: |
+          mkdir dir
+          python3 main.py dir --debug-fuse --debug
       - name: Test with pytest
         run: |
           pip install pytest
