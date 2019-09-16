@@ -22,7 +22,7 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from node import *
+from node import File, Directory, DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
 import utils
 
 
@@ -362,7 +362,7 @@ class TestFs(pyfuse3.Operations):
         refering to the same inode. This conveniently avoids the ambigiouties
         associated with the ``.`` and ``..`` entries).
         '''
-        name = fsdecode(name)
+        name = os.fsdecode(name)
 
         idx = self.__get_index_by_name(name)
 
@@ -521,7 +521,7 @@ class TestFs(pyfuse3.Operations):
         the changed and unchanged values).
         '''
         if inode not in self.nodes:
-            log.error("Inode %d not saved.", inode)
+            self.log.error("Inode %d not saved.", inode)
             raise Exception("Inode not found.")
         new_attr = self.nodes[inode].get_attr()
         self.log.debug(new_attr)
