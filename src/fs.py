@@ -30,6 +30,7 @@ class TestFs(pyfuse3.Operations):
 
     supports_dot_lookup = True
     enable_writeback_cache = True
+    enable_acl = False
 
     def __init__(self, mount_point, debug=False):
         super(TestFs, self).__init__()
@@ -213,6 +214,92 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         return self.__getattr(inode)
 
+    async def setattr(self, inode, attr, fields, fh, ctx):
+        self.log.info("----")
+        self.log.info("setattr: %d", inode)
+        self.log.info("----")
+        '''Change attributes of *inode*
+        *fields* will be an `SetattrFields` instance that specifies which
+        attributes are to be updated. *attr* will be an `EntryAttributes`
+        instance for *inode* that contains the new values for changed
+        attributes, and undefined values for all other attributes.
+        Most file systems will additionally set the
+        `~EntryAttributes.st_ctime_ns` attribute to the current time (to
+        indicate that the inode metadata was changed).
+        If the syscall that is being processed received a file descriptor
+        argument (like e.g. :manpage:`ftruncate(2)` or :manpage:`fchmod(2)`),
+        *fh* will be the file handle returned by the corresponding call to the
+        `open` handler. If the syscall was path based (like
+        e.g. :manpage:`truncate(2)` or :manpage:`chmod(2)`), *fh* will be
+        `None`.
+        *ctx* will be a `RequestContext` instance.
+        The method should return an `EntryAttributes` instance (containing both
+        the changed and unchanged values).
+        '''
+        if inode not in self.nodes:
+            self.log.error("Inode %d not saved.", inode)
+            raise Exception("Inode not found.")
+        new_attr = self.nodes[inode].get_attr()
+        self.log.debug(new_attr)
+        self.log.debug(fields)
+        try:
+            if fields.update_size:
+                new_attr.st_size = attr.st_size
+
+            if fields.update_mode:
+                new_attr.st_mode = attr.st_mode
+
+            if fields.update_uid:
+                new_attr.st_uid = attr.st_uid
+
+            if fields.update_gid:
+                new_attr.st_gid = attr.st_gid
+
+            if fields.update_atime:
+                new_attr.st_atime_ns = attr.st_atime_ns
+            if fields.update_mtime:
+                new_attr.st_mtime_ns = attr.st_mtime_ns
+
+            new_attr.st_ctime_ns = int(time.time() * 1e9)
+            self.nodes[inode].set_attr(new_attr)
+
+        except OSError as exc:
+            raise FUSEError(exc.errno)
+
+        return await self.getattr(inode)
+
+    # http://man7.org/linux/man-pages/man7/xattr.7.html
+    async def setxattr(self, inode, name, value, ctx):
+        '''Set extended attribute *name* of *inode* to *value*.
+        *ctx* will be a `RequestContext` instance.
+        The attribute may or may not exist already. Both *name* and *value* will
+        be of type `bytes`. *name* is guaranteed not to contain zero-bytes
+        (``\\0``).
+        '''
+        self.log.info("----")
+        self.log.info("setxattr: %i", inode)
+        self.log.debug("setxattr: %s", name)
+        self.log.debug("setxattr: %s", value)
+        self.log.info("----")
+
+        # raise FUSEError(errno.ENOSYS)
+
+    async def getxattr(self, inode, name, ctx):
+        '''Return extended attribute *name* of *inode*
+        *ctx* will be a `RequestContext` instance.
+        If the attribute does not exist, the method must raise `FUSEError` with
+        an error code of `ENOATTR`. *name* will be of type `bytes`, but is
+        guaranteed not to contain zero-bytes (``\\0``).
+        '''
+
+        self.log.info("----")
+        self.log.info("getxattr: %i", inode)
+        self.log.debug("getxattr: %s", name)
+        self.log.info("----")
+
+        # https://github.com/libfuse/pyfuse3/blob/master/src/xattr.h ENOATTR = ENODATA
+        raise FUSEError(errno.ENODATA)
+
     async def lookup(self, parent_inode, name, ctx=None):
         '''Look up a directory entry by name and get its attributes.
         This method should return an `EntryAttributes` instance for the
@@ -282,6 +369,346 @@ class TestFs(pyfuse3.Operations):
         attr.st_ino = 0
 
         return attr
+    
+    # TODO: Not enough data
+    async def open(self, inode, flags, ctx):
+        self.log.info("----")
+        self.log.info("open: %d", inode)
+        self.log.info("----")
+        """
+        if inode in self._inode_fd_map:
+            fd = self._inode_fd_map[inode]
+            self._fd_open_count[fd] += 1
+            return fd
+        assert flags & os.O_CREAT == 0
+        try:
+            fd = os.open(self._inode_to_path(inode), flags)
+        except OSError as exc:
+            raise FUSEError(exc.errno)
+        self._inode_fd_map[inode] = fd
+        self._fd_inode_map[fd] = inode
+        self._fd_open_count[fd] = 1
+        return fd
+        """
+        if flags & os.O_RDWR or flags & os.O_WRONLY:
+            self.log.error("False permission.")
+            # raise pyfuse3.FUSEError(errno.EPERM)
+        return inode
+
+    async def read(self, inode, off, size):
+        self.log.info("----")
+        self.log.info("read: %d", inode)
+        self.log.info("----")
+        self.log.info(self.nodes[inode].get_data()[off: off+size])
+        return self.nodes[inode].get_data()[off: off+size]
+
+    # TODO: implement mode and flags
+    async def create(self, parent_inode, name, mode, flags, ctx):
+        self.log.info("----")
+        self.log.info("create: %s", name)
+        self.log.info("----")
+
+        if name.decode("utf-8")[-4:] == ".swp":
+            self.log.debug("Creating a swap file.")
+        '''Create a file with permissions *mode* and open it with *flags*
+        *ctx* will be a `RequestContext` instance.
+        The method must return a tuple of the form *(fh, attr)*, where *fh* is a
+        file handle like the one returned by `open` and *attr* is an
+        `EntryAttributes` instance with the attributes of the newly created
+        directory entry.
+        (Successful) execution of this handler increases the lookup count for
+        the returned inode by one.
+        '''
+        try:
+            self.log.debug("Trying to get inode")
+            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path())
+            self.log.debug("Got inode %d", inode)
+            if inode is None:
+                self.log.error("Inode already exists.")
+
+                # Get node by name and path!
+                self.__get_node_by_name()
+            attr = self.__getattr(inode)
+            self.log.debug("got attributes for inode %d", inode)
+            self.log.debug(str(attr))
+        except Exception as e:
+            self.log.error(e)
+            self.log.error("Create Failed")
+        """
+        path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
+        try:
+            fd = os.open(path, flags | os.O_CREAT | os.O_TRUNC)
+        except OSError as exc:
+            raise FUSEError(exc.errno)
+        attr = self.__getattr(fd=fd)
+        self._add_path(attr.st_ino, path)
+        self._inode_fd_map[attr.st_ino] = fd
+        self._fd_inode_map[fd] = attr.st_ino
+        self._fd_open_count[fd] = 1
+        return (fd, attr)
+        """
+
+        return (inode, attr)
+    
+    async def write(self, inode, off, buf):
+        self.log.info(self.nodes)
+        self.log.info("----")
+        self.log.info("write inode: %d", inode)
+        self.log.info("----")
+        self.log.info("offset: %d", off)
+
+        '''Write *buf* into *fh* at *off*
+        *fh* will by an integer filehandle returned by a prior `open` or
+        `create` call.
+        This method must return the number of bytes written. However, unless the
+        file system has been mounted with the ``direct_io`` option, the file
+        system *must* always write *all* the provided data (i.e., return
+        ``len(buf)``).
+        '''
+
+        try:
+            output = ""
+            node = self.nodes[inode]
+            data = node.get_data(encoding=UTF_8_ENCODING)
+            self.log.debug("data: %s", data)
+            buffer = buf.decode("utf-8")
+            self.log.debug("buffer: %s", buffer)
+            output = data[:off] + buffer + data[off:]
+            self.log.debug("output: %s", output)
+            self.log.debug("current data: %s", self.nodes[inode].get_data())
+            self.nodes[inode].set_data(output)
+
+        except Exception as e:
+            self.log.error(e)
+            self.log.error("Write was not successful")
+        return len(buf)
+    
+    async def access(self, inode, mode, ctx):
+        '''Check if requesting process has *mode* rights on *inode*.
+        *ctx* will be a `RequestContext` instance.
+        The method must return a boolean value.
+        If the ``default_permissions`` mount option is given, this method is not
+        called.
+        When implementing this method, the `get_sup_groups` function may be
+        useful.
+        '''
+        
+        self.log.info("----")
+        self.log.info("access: %i", inode)
+        self.log.debug("access: %s", mode)
+        self.log.info("----")
+
+        # raise FUSEError(errno.ENOSYS)
+
+    async def release(self, inode):
+        self.log.info("----")
+        self.log.info("release: %s", inode)
+        self.log.info("----")
+        '''Release open file
+        This method will be called when the last file descriptor of *fh* has
+        been closed, i.e. when the file is no longer opened by any client
+        process.
+        *fh* will by an integer filehandle returned by a prior `open` or
+        `create` call. Once `release` has been called, no future requests for
+        *fh* will be received (until the value is re-used in the return value of
+        another `open` or `create` call).
+        This method may return an error by raising `FUSEError`, but the error
+        will be discarded because there is no corresponding client request.
+        '''
+        """
+        if self._fd_open_count[fd] > 1:
+            self._fd_open_count[fd] -= 1
+            return
+
+        del self._fd_open_count[fd]
+        inode = self._fd_inode_map[fd]
+        del self._inode_fd_map[inode]
+        del self._fd_inode_map[fd]
+        try:
+            os.close(fd)
+        except OSError as exc:
+            raise FUSEError(exc.errno)
+        """
+        if self.nodes[inode].type == SWAP_TYPE:
+            self.log.debug("deleting %s", self.nodes[inode])
+            del self.nodes[inode]
+        self.log.debug(self.nodes)
+    
+    async def unlink(self, parent_inode, name, ctx):
+        self.log.info("----")
+        self.log.info("unlink: %s", name)
+        self.log.info("----")
+        '''Remove a (possibly special) file
+            This method must remove the (special or regular) file *name* from the
+            directory with inode *parent_inode*.  *ctx* will be a `RequestContext`
+            instance.
+            If the inode associated with *file* (i.e., not the *parent_inode*) has a
+            non-zero lookup count, or if there are still other directory entries
+            referring to this inode (due to hardlinks), the file system must remove
+            only the directory entry (so that future calls to `readdir` for
+            *parent_inode* will no longer include *name*, but e.g. calls to
+            `getattr` for *file*'s inode still succeed). (Potential) removal of the
+            associated inode with the file contents and metadata must be deferred to
+            the `forget` method to be carried out when the lookup count reaches zero
+            (and of course only if at that point there are no more directory entries
+            associated with the inode either).
+            '''
+
+        idx = self.__get_index_by_name(name)
+        self.nodes[idx].set_unlink(True)
+        self.log.info("inode: %d", idx)
+
+        # unlink is not prohibited to delete a item -> forget method
+        # del self.nodes[idx]
+
+        # TODO: forget path(s)
+
+    async def flush(self, inode):
+        self.log.info("----")
+        self.log.info("flush: %d", inode)
+        self.log.info("----")
+        '''Handle close() syscall.
+        *fh* will by an integer filehandle returned by a prior `open` or
+        `create` call.
+        This method is called whenever a file descriptor is closed. It may be
+        called multiple times for the same open file (e.g. if the file handle
+        has been duplicated).
+        '''
+
+    async def forget(self, inode_list):
+        self.log.info("----")
+        self.log.info("forget: %s", inode_list)
+        self.log.info("----")
+        '''Decrease lookup counts for inodes in *inode_list*
+        *inode_list* is a list of ``(inode, nlookup)`` tuples. This method
+        should reduce the lookup count for each *inode* by *nlookup*.
+        If the lookup count reaches zero, the inode is currently not known to
+        the kernel. In this case, the file system will typically check if there
+        are still directory entries referring to this inode and, if not, remove
+        the inode.
+        If the file system is unmounted, it may not have received `forget` calls
+        to bring all lookup counts to zero. The filesystem needs to take care to
+        clean up inodes that at that point still have non-zero lookup count
+        (e.g. by explicitly calling `forget` with the current lookup count for
+        every such inode after `main` has returned).
+        This method must not raise any exceptions (not even `FUSEError`), since
+        it is not handling a particular client request.
+        '''
+        for (inode, nlookup) in inode_list:
+            if self._lookup_cnt[inode] > nlookup:
+                self._lookup_cnt[inode] -= nlookup
+                continue
+            self.log.debug('forgetting about inode %d', inode)
+            # assert inode not in self._inode_fd_map
+            del self._lookup_cnt[inode]
+            try:
+                del self.nodes[inode]
+            except KeyError:  # may have been deleted
+                pass
+    
+    async def fsync(self, inode, datasync):
+        '''Flush buffers for open file *fh*
+        If *datasync* is true, only the file contents should be
+        flushed (in contrast to the metadata about the file).
+        *fh* will by an integer filehandle returned by a prior `open` or
+        `create` call.
+        '''
+
+        self.log.info("----")
+        self.log.info("fsync: %i", inode)
+        self.log.info("----")
+        # raise FUSEError(errno.ENOSYS)
+
+    async def symlink(self, parent_inode, name, target, ctx):
+        '''Create a symbolic link
+        This method must create a symbolink link named *name* in the directory
+        with inode *parent_inode*, pointing to *target*.  *ctx* will be a
+        `RequestContext` instance.
+        The method must return an `EntryAttributes` instance with the attributes
+        of the newly created directory entry.
+        (Successful) execution of this handler increases the lookup count for
+        the returned inode by one.
+        '''
+
+        self.log.info("----")
+        self.log.info("symlink: %s", name)
+        self.log.info("----")
+        # raise FUSEError(errno.ENOSYS)
+
+    async def rename(self, parent_inode_old, name_old, parent_inode_new,
+               name_new, flags, ctx):
+        '''Rename a directory entry.
+        This method must rename *name_old* in the directory with inode
+        *parent_inode_old* to *name_new* in the directory with inode
+        *parent_inode_new*.  If *name_new* already exists, it should be
+        overwritten.
+        *flags* may be `RENAME_EXCHANGE` or `RENAME_NOREPLACE`. If
+        `RENAME_NOREPLACE` is specified, the filesystem must not overwrite
+        *name_new* if it exists and return an error instead. If
+        `RENAME_EXCHANGE` is specified, the filesystem must atomically exchange
+        the two files, i.e. both must exist and neither may be deleted.
+        *ctx* will be a `RequestContext` instance.
+        Let the inode associated with *name_old* in *parent_inode_old* be
+        *inode_moved*, and the inode associated with *name_new* in
+        *parent_inode_new* (if it exists) be called *inode_deref*.
+        If *inode_deref* exists and has a non-zero lookup count, or if there are
+        other directory entries referring to *inode_deref*), the file system
+        must update only the directory entry for *name_new* to point to
+        *inode_moved* instead of *inode_deref*.  (Potential) removal of
+        *inode_deref* (containing the previous contents of *name_new*) must be
+        deferred to the `forget` method to be carried out when the lookup count
+        reaches zero (and of course only if at that point there are no more
+        directory entries associated with *inode_deref* either).
+        '''
+
+        self.log.info("----")
+        self.log.info("rename: %s to %s", name_old, name_new)
+        self.log.info("----")
+
+        # raise FUSEError(errno.ENOSYS)
+
+    async def link(self, inode, new_parent_inode, new_name, ctx):
+        '''Create directory entry *name* in *parent_inode* refering to *inode*.
+        *ctx* will be a `RequestContext` instance.
+        The method must return an `EntryAttributes` instance with the
+        attributes of the newly created directory entry.
+        (Successful) execution of this handler increases the lookup count for
+        the returned inode by one.
+        '''
+
+        self.log.info("----")
+        self.log.info("link: %i to %s", inode, new_name)
+        self.log.info("----")
+
+        # raise FUSEError(errno.ENOSYS)
+
+    async def readlink(self, inode, ctx):
+        '''Return target of symbolic link *inode*.
+        *ctx* will be a `RequestContext` instance.
+        '''
+
+        # raise FUSEError(errno.ENOSYS)
+        self.log.info("----")
+        self.log.info("readlink: %i", inode)
+        self.log.info("----")
+
+    async def mknod(self, parent_inode, name, mode, rdev, ctx):
+        '''Create (possibly special) file
+        This method must create a (special or regular) file *name* in the
+        directory with inode *parent_inode*. Whether the file is special or
+        regular is determined by its *mode*. If the file is neither a block nor
+        character device, *rdev* can be ignored. *ctx* will be a
+        `RequestContext` instance.
+        The method must return an `EntryAttributes` instance with the attributes
+        of the newly created directory entry.
+        (Successful) execution of this handler increases the lookup count for
+        the returned inode by one.
+       '''
+
+        self.log.info("----")
+        self.log.info("mknod: %s", name)
+        self.log.info("----")
+        # raise FUSEError(errno.ENOSYS)
 
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
@@ -362,129 +789,23 @@ class TestFs(pyfuse3.Operations):
         refering to the same inode. This conveniently avoids the ambigiouties
         associated with the ``.`` and ``..`` entries).
         '''
+
+        # TODO: could use fsdecode and fsencode rather than actual utf-8 and byte encoding / decoding
         name = os.fsdecode(name)
 
+
+        # TODO: Error: "%name%" not found -> fix index
         idx = self.__get_index_by_name(name)
 
         self.log.info("forget inode: %d", idx)
+
+        # TODO: Remove file?
 
         # TODO: forget path(s)
         # if inode in self._lookup_cnt:
         #    self._forget_path(inode, path)
 
-    # TODO: Not enough data
-    async def open(self, inode, flags, ctx):
-        self.log.info("----")
-        self.log.info("open: %d", inode)
-        self.log.info("----")
-        """
-        if inode in self._inode_fd_map:
-            fd = self._inode_fd_map[inode]
-            self._fd_open_count[fd] += 1
-            return fd
-        assert flags & os.O_CREAT == 0
-        try:
-            fd = os.open(self._inode_to_path(inode), flags)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        self._inode_fd_map[inode] = fd
-        self._fd_inode_map[fd] = inode
-        self._fd_open_count[fd] = 1
-        return fd
-        """
-        if flags & os.O_RDWR or flags & os.O_WRONLY:
-            self.log.error("False permission.")
-            # raise pyfuse3.FUSEError(errno.EPERM)
-        return inode
-
-    async def read(self, inode, off, size):
-        self.log.info("----")
-        self.log.info("read: %d", inode)
-        self.log.info("----")
-        self.log.info(self.nodes[inode].get_data()[off: off+size])
-        return self.nodes[inode].get_data()[off: off+size]
-
-    # TODO: implement mode and flags
-    async def create(self, parent_inode, name, mode, flags, ctx):
-        self.log.info("----")
-        self.log.info("create: %s", name)
-        self.log.info("----")
-
-        if name.decode("utf-8")[-4:] == ".swp":
-            self.log.debug("Creating a swap file.")
-        '''Create a file with permissions *mode* and open it with *flags*
-        *ctx* will be a `RequestContext` instance.
-        The method must return a tuple of the form *(fh, attr)*, where *fh* is a
-        file handle like the one returned by `open` and *attr* is an
-        `EntryAttributes` instance with the attributes of the newly created
-        directory entry.
-        (Successful) execution of this handler increases the lookup count for
-        the returned inode by one.
-        '''
-        try:
-            self.log.debug("Trying to get inode")
-            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path())
-            self.log.debug("Got inode %d", inode)
-            if inode is None:
-                self.log.error("Inode already exists.")
-
-                # Get node by name and path!
-                self.__get_node_by_name()
-            attr = self.__getattr(inode)
-            self.log.debug("got attributes for inode %d", inode)
-            self.log.debug(str(attr))
-        except Exception as e:
-            self.log.error(e)
-            self.log.error("Create Failed")
-        """
-        path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
-        try:
-            fd = os.open(path, flags | os.O_CREAT | os.O_TRUNC)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        attr = self.__getattr(fd=fd)
-        self._add_path(attr.st_ino, path)
-        self._inode_fd_map[attr.st_ino] = fd
-        self._fd_inode_map[fd] = attr.st_ino
-        self._fd_open_count[fd] = 1
-        return (fd, attr)
-        """
-
-        return (inode, attr)
-
-    async def release(self, inode):
-        self.log.info("----")
-        self.log.info("release: %s", inode)
-        self.log.info("----")
-        '''Release open file
-        This method will be called when the last file descriptor of *fh* has
-        been closed, i.e. when the file is no longer opened by any client
-        process.
-        *fh* will by an integer filehandle returned by a prior `open` or
-        `create` call. Once `release` has been called, no future requests for
-        *fh* will be received (until the value is re-used in the return value of
-        another `open` or `create` call).
-        This method may return an error by raising `FUSEError`, but the error
-        will be discarded because there is no corresponding client request.
-        '''
-        """
-        if self._fd_open_count[fd] > 1:
-            self._fd_open_count[fd] -= 1
-            return
-
-        del self._fd_open_count[fd]
-        inode = self._fd_inode_map[fd]
-        del self._inode_fd_map[inode]
-        del self._fd_inode_map[fd]
-        try:
-            os.close(fd)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        """
-        if self.nodes[inode].type == SWAP_TYPE:
-            self.log.debug("deleting %s", self.nodes[inode])
-            del self.nodes[inode]
-        self.log.debug(self.nodes)
+    
 
     async def releasedir(self, inode):
         self.log.info("----")
@@ -498,163 +819,79 @@ class TestFs(pyfuse3.Operations):
 
         pass
 
-    async def setattr(self, inode, attr, fields, fh, ctx):
+    async def fsyncdir(self, inode, datasync):
+        '''Flush buffers for open directory *fh*
+        If *datasync* is true, only the directory contents should be
+        flushed (in contrast to metadata about the directory itself).
+        '''
+
         self.log.info("----")
-        self.log.info("setattr: %d", inode)
+        self.log.info("fsyncdir: %d", inode)
         self.log.info("----")
-        '''Change attributes of *inode*
-        *fields* will be an `SetattrFields` instance that specifies which
-        attributes are to be updated. *attr* will be an `EntryAttributes`
-        instance for *inode* that contains the new values for changed
-        attributes, and undefined values for all other attributes.
-        Most file systems will additionally set the
-        `~EntryAttributes.st_ctime_ns` attribute to the current time (to
-        indicate that the inode metadata was changed).
-        If the syscall that is being processed received a file descriptor
-        argument (like e.g. :manpage:`ftruncate(2)` or :manpage:`fchmod(2)`),
-        *fh* will be the file handle returned by the corresponding call to the
-        `open` handler. If the syscall was path based (like
-        e.g. :manpage:`truncate(2)` or :manpage:`chmod(2)`), *fh* will be
-        `None`.
+
+        # raise FUSEError(errno.ENOSYS)
+
+    async def statfs(self, ctx):
+        '''Get file system statistics
         *ctx* will be a `RequestContext` instance.
-        The method should return an `EntryAttributes` instance (containing both
-        the changed and unchanged values).
-        '''
-        if inode not in self.nodes:
-            self.log.error("Inode %d not saved.", inode)
-            raise Exception("Inode not found.")
-        new_attr = self.nodes[inode].get_attr()
-        self.log.debug(new_attr)
-        self.log.debug(fields)
-        try:
-            if fields.update_size:
-                new_attr.st_size = attr.st_size
-
-            if fields.update_mode:
-                new_attr.st_mode = attr.st_mode
-
-            if fields.update_uid:
-                new_attr.st_uid = attr.st_uid
-
-            if fields.update_gid:
-                new_attr.st_gid = attr.st_gid
-
-            if fields.update_atime:
-                new_attr.st_atime_ns = attr.st_atime_ns
-            if fields.update_mtime:
-                new_attr.st_mtime_ns = attr.st_mtime_ns
-
-            new_attr.st_ctime_ns = int(time.time() * 1e9)
-            self.nodes[inode].set_attr(new_attr)
-
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-
-        return await self.getattr(inode)
-
-    async def unlink(self, parent_inode, name, ctx):
-        self.log.info("----")
-        self.log.info("unlink: %s", name)
-        self.log.info("----")
-        '''Remove a (possibly special) file
-            This method must remove the (special or regular) file *name* from the
-            directory with inode *parent_inode*.  *ctx* will be a `RequestContext`
-            instance.
-            If the inode associated with *file* (i.e., not the *parent_inode*) has a
-            non-zero lookup count, or if there are still other directory entries
-            referring to this inode (due to hardlinks), the file system must remove
-            only the directory entry (so that future calls to `readdir` for
-            *parent_inode* will no longer include *name*, but e.g. calls to
-            `getattr` for *file*'s inode still succeed). (Potential) removal of the
-            associated inode with the file contents and metadata must be deferred to
-            the `forget` method to be carried out when the lookup count reaches zero
-            (and of course only if at that point there are no more directory entries
-            associated with the inode either).
-            '''
-
-        idx = self.__get_index_by_name(name)
-        self.nodes[idx].set_unlink(True)
-        self.log.info("inode: %d", idx)
-
-        # unlink is not prohibited to delete a item -> forget method
-        # del self.nodes[idx]
-
-        # TODO: forget path(s)
-
-    async def flush(self, inode):
-        self.log.info("----")
-        self.log.info("flush: %d", inode)
-        self.log.info("----")
-        '''Handle close() syscall.
-        *fh* will by an integer filehandle returned by a prior `open` or
-        `create` call.
-        This method is called whenever a file descriptor is closed. It may be
-        called multiple times for the same open file (e.g. if the file handle
-        has been duplicated).
+        The method must return an appropriately filled `StatvfsData` instance.
         '''
 
-    async def write(self, inode, off, buf):
-        self.log.info(self.nodes)
         self.log.info("----")
-        self.log.info("write inode: %d", inode)
+        self.log.info("statfs")
         self.log.info("----")
-        self.log.info("offset: %d", off)
 
-        '''Write *buf* into *fh* at *off*
-        *fh* will by an integer filehandle returned by a prior `open` or
-        `create` call.
-        This method must return the number of bytes written. However, unless the
-        file system has been mounted with the ``direct_io`` option, the file
-        system *must* always write *all* the provided data (i.e., return
-        ``len(buf)``).
+        #raise FUSEError(errno.ENOSYS)
+
+    def stacktrace(self):
+        '''Asynchronous debugging
+        This method will be called when the ``fuse_stacktrace`` extended
+        attribute is set on the mountpoint. The default implementation logs the
+        current stack trace of every running Python thread. This can be quite
+        useful to debug file system deadlocks.
+        '''
+        
+        self.log.info("----")
+        self.log.info("stacktrace")
+        self.log.info("----")
+
+        import sys
+        import traceback
+
+        code = list()
+        for threadId, frame in sys._current_frames().items():
+            code.append("\n# ThreadID: %s" % threadId)
+            for filename, lineno, name, line in traceback.extract_stack(frame):
+                code.append('%s:%d, in %s' % (os.path.basename(filename), lineno, name))
+                if line:
+                    code.append("    %s" % (line.strip()))
+
+        self.log.error("\n".join(code))
+
+    async def listxattr(self, inode, ctx):
+        '''Get list of extended attributes for *inode*
+        *ctx* will be a `RequestContext` instance.
+        This method must return a sequence of `bytes` objects.  The objects must
+        not include zero-bytes (``\\0``).
         '''
 
-        try:
-            output = ""
-            node = self.nodes[inode]
-            data = node.get_data(encoding=UTF_8_ENCODING)
-            self.log.debug("data: %s", data)
-            buffer = buf.decode("utf-8")
-            self.log.debug("buffer: %s", buffer)
-            output = data[:off] + buffer + data[off:]
-            self.log.debug("output: %s", output)
-            self.log.debug("current data: %s", self.nodes[inode].get_data())
-            self.nodes[inode].set_data(output)
+        # raise FUSEError(errno.ENOSYS)
+        self.log.info("----")
+        self.log.info("listxattr: %d", inode)
+        self.log.info("----")
 
-        except Exception as e:
-            self.log.error(e)
-            self.log.error("Write was not successful")
-        return len(buf)
-
-    async def forget(self, inode_list):
-        self.log.info("forget")
-        '''Decrease lookup counts for inodes in *inode_list*
-        *inode_list* is a list of ``(inode, nlookup)`` tuples. This method
-        should reduce the lookup count for each *inode* by *nlookup*.
-        If the lookup count reaches zero, the inode is currently not known to
-        the kernel. In this case, the file system will typically check if there
-        are still directory entries referring to this inode and, if not, remove
-        the inode.
-        If the file system is unmounted, it may not have received `forget` calls
-        to bring all lookup counts to zero. The filesystem needs to take care to
-        clean up inodes that at that point still have non-zero lookup count
-        (e.g. by explicitly calling `forget` with the current lookup count for
-        every such inode after `main` has returned).
-        This method must not raise any exceptions (not even `FUSEError`), since
-        it is not handling a particular client request.
+    async def removexattr(self, inode, name, ctx):
+        '''Remove extended attribute *name* of *inode*
+        *ctx* will be a `RequestContext` instance.
+        If the attribute does not exist, the method must raise `FUSEError` with
+        an error code of `ENOATTR`. *name* will be of type `bytes`, but is
+        guaranteed not to contain zero-bytes (``\\0``).
         '''
-        for (inode, nlookup) in inode_list:
-            if self._lookup_cnt[inode] > nlookup:
-                self._lookup_cnt[inode] -= nlookup
-                continue
-            self.log.debug('forgetting about inode %d', inode)
-            # assert inode not in self._inode_fd_map
-            del self._lookup_cnt[inode]
-            try:
-                del self.nodes[inode]
-            except KeyError:  # may have been deleted
-                pass
 
+        # raise FUSEError(errno.ENOSYS)
+        self.log.info("----")
+        self.log.info("removexattr: %d", inode)
+        self.log.info("----")
 
 async def start_async(mount_point, debug, debug_fuse):
     utils.init_logging("pyfuse3", debug_fuse)
@@ -678,7 +915,7 @@ async def start_async(mount_point, debug, debug_fuse):
 
 
 def start(mount_point, debug, debug_fuse):
-    utils.init_logging("pyfuse3", debug_fuse)
+    fuse_log = utils.init_logging("pyfuse3", debug_fuse)
 
     testfs = TestFs(mount_point, debug)
     fuse_options = set(pyfuse3.default_options)
@@ -688,11 +925,16 @@ def start(mount_point, debug, debug_fuse):
     pyfuse3.init(testfs, mount_point, fuse_options)
     try:
         trio.run(pyfuse3.main)
-    except BaseException:
-        logging.getLogger("pyfuse3").debug("BaseException occured")
+    except FUSEError:
+        fuse_log.warning("FUSEError occured")
         pyfuse3.close(unmount=False)
-    except Exception:
-        logging.getLogger("pyfuse3").debug("Exception occured")
+    except BaseException as be:
+        fuse_log.warning(be.args)
+        fuse_log.warning("BaseException occured")
+        pyfuse3.close(unmount=False)
+    except Exception as e:
+        fuse_log.warning(e.args)
+        fuse_log.warning("Exception occured")
         pyfuse3.close(unmount=False)
     finally:
         pyfuse3.close()

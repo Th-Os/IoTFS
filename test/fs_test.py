@@ -6,7 +6,7 @@ https://www.rath.org/pyfuse3-docs/gotchas.html
 import os
 import pytest
 
-ROOT_DIR = "../dir"
+ROOT_DIR = "dir"
 
 
 def test_file():

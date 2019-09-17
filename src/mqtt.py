@@ -39,6 +39,7 @@ class MQTT(mqtt.Client):
         path = os.path.join(*msg.topic.split("/"))
         directory = os.path.join(self.entry, path)
         self.log.debug("Using directory: %s", directory)
+        self.log.debug("Abs path: %s", os.path.abspath(directory))
         # not working
 
         os.makedirs(directory, exist_ok=True)

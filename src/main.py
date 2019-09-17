@@ -23,11 +23,12 @@ def parse_args():
 
 async def start(options):
     log = utils.init_logging(debug=options.debug, with_file=False)
+    log.info("Starting asynchronously.")
     async with trio.open_nursery() as nursery:
-        log.debug("parent: spawning child1...")
+        log.debug("parent: spawning mqtt module")
         nursery.start_soon(mqtt.start, options.mountpoint, options.debug)
 
-        log.debug("parent: spawning child2...")
+        log.debug("parent: spawning fs module")
         nursery.start_soon(fs.start, options.mountpoint,
                            options.debug, options.debug_fuse)
 
@@ -39,14 +40,14 @@ async def start(options):
 def async_main():
     options = parse_args()
     trio.run(start, options)
-    log.info("Starting asynchronously.")
 
 
 def main():
     options = parse_args()
     log = utils.init_logging(debug=options.debug, with_file=False)
-    # fs.start(options.mountpoint, options.debug, options.debug_fuse)
+    fs.start(options.mountpoint, options.debug, options.debug_fuse)
 
+    '''
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             executor.submit(fs.start, options.mountpoint,
@@ -55,6 +56,7 @@ def main():
 
     except (BaseException, Exception) as e:
         log.error(e)
+    '''
 
 
 if __name__ == "__main__":
