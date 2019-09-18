@@ -7,6 +7,8 @@ FILE_TYPE = 0
 DIR_TYPE = 1
 SWAP_TYPE = 2
 
+# TODO: could use fsdecode and fsencode rather than actual utf-8 and byte encoding / decoding
+
 
 class Node():
 
@@ -16,6 +18,12 @@ class Node():
         self.type = file_type
         self.attr = attr
         self.unlink = unlink
+
+        # Creating a node means the systems looks it up.
+        self.lookup_count = 1
+
+        # If rm or rmdir -> node needs to exist but ls mustn't show the item
+        self.invisible = False
 
     def set_name(self, name):
         if type(name) is str:
@@ -60,16 +68,34 @@ class Node():
     def set_unlink(self, unlink):
         self.unlink = unlink
 
+    def increase_lookup(self, amount=1):
+        self.lookup_count += amount
+
+    def decrease_lookup(self, amount=1):
+        self.lookup_count -= amount
+
+    def get_lookup(self):
+        return self.lookup_count
+
+    def set_visible(self):
+        self.invisible = False
+
+    def set_invisible(self):
+        self.invisible = True
+
     def to_dict(self):
         return {
             "name": self.name,
             "path": self.path,
             "type": self.type,
-            "unlink": self.unlink
+            "unlink": self.unlink,
+            "lookup_count": self.lookup_count,
+            "invisible": self.invisible
         }
 
     def __repr__(self):
-        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3})".format(self.name, self.path, self.type, self.unlink)
+        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3}, lookup_count: {4}, invisible: {5})".format(
+            self.name, self.path, self.type, self.unlink, self.lookup_count, self.invisible)
 
 
 class File(Node):
@@ -103,8 +129,13 @@ class File(Node):
         }
 
     def __repr__(self):
-        return "File(name: {0}, path: {1}, type: {2}, data: {3}, unlink: {4})".format(self.name, self.path, self.type,
-                                                                                      self.data, self.unlink)
+        return "File(name: {0}, ".format(self.name) +\
+            "path: {0}, ".format(self.path) +\
+            "type: {0}, ".format(self.type) +\
+            "data: {0}, ".format(self.data) +\
+            "unlink: {0}, ".format(self.unlink) +\
+            "lookup_count: {0}, ".format(self.lookup_count) +\
+            "invisible: {0}, ".format(self.invisible)
 
 
 class Directory(Node):
@@ -112,6 +143,7 @@ class Directory(Node):
     def __init__(self, name, path, attr=None, unlink=False, root=False):
         super().__init__(name, path, DIR_TYPE, attr=attr, unlink=unlink)
         self.root = root
+        self.children = []
 
     def is_root(self):
         return self.root
@@ -121,6 +153,27 @@ class Directory(Node):
             return self.path + os.sep
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
 
+    def get_children(self):
+        return self.children
+
+    def add_child(self, inode):
+        self.children.append(inode)
+
+    def rm_child(self, inode):
+        self.children.remove(inode)
+
+    def to_dict(self):
+        return {
+            **super().to_dict(),
+            "children": self.children
+        }
+
     def __repr__(self):
-        return "Directory(name: {0}, path: {1}, type: {2}, unlink: {3}, root: {4})".format(
-            self.name, self.path, self.type, self.unlink, self.root)
+        return "Directory(name: {0}, ".format(self.name) +\
+            "path: {0}, ".format(self.path) +\
+            "type: {0}, ".format(self.type) +\
+            "root: {0}, ".format(self.root) +\
+            "children: {0}, ".format(self.children) +\
+            "unlink: {0}, ".format(self.unlink) +\
+            "lookup_count: {0}, ".format(self.lookup_count) +\
+            "invisible: {0}, ".format(self.invisible)

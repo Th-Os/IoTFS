@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import trio
-import concurrent.futures
+# import concurrent.futures
 
 import fs
 import mqtt
@@ -45,6 +45,7 @@ def async_main():
 def main():
     options = parse_args()
     log = utils.init_logging(debug=options.debug, with_file=False)
+    log.info("Starting application.")
     fs.start(options.mountpoint, options.debug, options.debug_fuse)
 
     '''
