@@ -40,9 +40,9 @@ class MQTT(mqtt.Client):
         directory = os.path.join(self.entry, path)
         self.log.debug("Using directory: %s", directory)
         self.log.debug("Abs path: %s", os.path.abspath(directory))
-        # not working
 
-        os.makedirs(directory, exist_ok=True)
+        # This could be related to the IOCTL error
+        os.makedirs(os.path.abspath(directory), exist_ok=True)
 
         payload = json.loads(payload)
 
@@ -54,11 +54,18 @@ class MQTT(mqtt.Client):
             try:
                 # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
                 self.log.debug("will open: %s", str(
-                    os.path.join(directory, key)))
-                with open(os.path.join(directory, key), 'w+') as f:
-                    self.log.debug("Will write %s to %s", value, f)
-                    size = f.write(value)
-                    self.log.debug("Wrote %d characters", size)
+                    os.path.join(os.path.abspath(directory), key)))
+                if os.path.isfile(os.path.join(os.path.abspath(directory), key)):
+                    with open(os.path.join(os.path.abspath(directory), key), 'w') as f:
+                        self.log.debug("Will write %s to %s", value, f)
+                        size = f.write(value)
+                        self.log.debug("Wrote %d characters", size)
+                else:
+                    self.log.debug("File doesn't exist. Creating file.")
+                    with open(os.path.join(os.path.abspath(directory), key), 'x') as f:
+                        self.log.debug("Will write %s to %s", value, f)
+                        size = f.write(value)
+                        self.log.debug("Wrote %d characters", size)
             except Exception as e:
                 self.log.error(e.with_traceback().msg)
 

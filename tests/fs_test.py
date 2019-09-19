@@ -37,7 +37,10 @@ def test_dir():
     os.rmdir(os.path.join(ROOT_DIR, "dir_one"))
     os.removedirs(os.path.join(ROOT_DIR, "dir_two"))
 
+    list_dir = os.listdir(ROOT_DIR)
+    assert 'dir_one' not in list_dir
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_one")) is False
+    assert 'dir_two' not in list_dir
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_two")) is False
     assert os.path.isdir(os.path.join(
         ROOT_DIR, "dir_two", "dir_three")) is False

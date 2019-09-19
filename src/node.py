@@ -1,4 +1,5 @@
 import os
+import pyfuse3
 
 BYTE_ENCODING = 0
 UTF_8_ENCODING = 1
@@ -12,9 +13,10 @@ SWAP_TYPE = 2
 
 class Node():
 
-    def __init__(self, name, path, file_type, attr, unlink):
+    def __init__(self, name, path, parent, file_type, attr, unlink):
         self.set_name(name)
         self.path = path
+        self.parent = parent
         self.type = file_type
         self.attr = attr
         self.unlink = unlink
@@ -44,6 +46,9 @@ class Node():
 
     def get_full_path(self):
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
+
+    def get_parent(self):
+        return self.parent
 
     def set_type(self, file_type):
         self.type = file_type
@@ -87,6 +92,7 @@ class Node():
         return {
             "name": self.name,
             "path": self.path,
+            "parent": self.parent,
             "type": self.type,
             "unlink": self.unlink,
             "lookup_count": self.lookup_count,
@@ -100,8 +106,8 @@ class Node():
 
 class File(Node):
 
-    def __init__(self, name, path, data="", attr=None, unlink=False):
-        super().__init__(name, path, FILE_TYPE, attr=attr, unlink=unlink)
+    def __init__(self, name, path, parent=0, data="", attr=None, unlink=False):
+        super().__init__(name, path, parent, FILE_TYPE, attr=attr, unlink=unlink)
         self.set_data(data)
         if self.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
             self.set_type(SWAP_TYPE)
@@ -131,19 +137,20 @@ class File(Node):
     def __repr__(self):
         return "File(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
+            "parent: {0}, ".format(self.parent) +\
+            "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\
             "data: {0}, ".format(self.data) +\
             "unlink: {0}, ".format(self.unlink) +\
             "lookup_count: {0}, ".format(self.lookup_count) +\
-            "invisible: {0}, ".format(self.invisible)
+            "invisible: {0}) ".format(self.invisible)
 
 
 class Directory(Node):
 
-    def __init__(self, name, path, attr=None, unlink=False, root=False):
-        super().__init__(name, path, DIR_TYPE, attr=attr, unlink=unlink)
+    def __init__(self, name, path, parent=0, attr=None, unlink=False, root=False):
+        super().__init__(name, path, parent, DIR_TYPE, attr=attr, unlink=unlink)
         self.root = root
-        self.children = []
 
     def is_root(self):
         return self.root
@@ -153,27 +160,27 @@ class Directory(Node):
             return self.path + os.sep
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
 
-    def get_children(self):
-        return self.children
-
-    def add_child(self, inode):
-        self.children.append(inode)
-
-    def rm_child(self, inode):
-        self.children.remove(inode)
-
     def to_dict(self):
         return {
-            **super().to_dict(),
-            "children": self.children
+            **super().to_dict()
         }
 
     def __repr__(self):
         return "Directory(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
+            "parent: {0}, ".format(self.parent) +\
+            "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\
             "root: {0}, ".format(self.root) +\
-            "children: {0}, ".format(self.children) +\
             "unlink: {0}, ".format(self.unlink) +\
             "lookup_count: {0}, ".format(self.lookup_count) +\
             "invisible: {0}, ".format(self.invisible)
+
+
+class EntryAttributes(pyfuse3.EntryAttributes):
+
+    def __init__(self):
+        super().__init__()
+
+    def __repr__(self):
+        return "EntryAttributes(st_ino: {0})".format(self.st_ino)

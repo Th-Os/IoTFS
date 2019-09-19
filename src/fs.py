@@ -21,7 +21,7 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from node import File, Directory, DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
+from node import File, Directory, EntryAttributes, DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
 import utils
 
 
@@ -44,7 +44,7 @@ class TestFs(pyfuse3.Operations):
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
-    def __add_inode(self, name, path, node_type=FILE_TYPE, data=""):
+    def __add_inode(self, name, path, parent, node_type=FILE_TYPE, data=""):
         self.log.info('__add_inode for %s', path)
         '''
         if len(self.nodes) == 0:
@@ -58,11 +58,24 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("Found no inode")
             self.log.debug("Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == FILE_TYPE or node_type == SWAP_TYPE:
-                self.nodes[inode] = File(name, path, data)
+                self.nodes[inode] = File(name, path, parent, data)
             else:
-                self.nodes[inode] = Directory(name, path)
+                self.nodes[inode] = Directory(name, path, parent)
             self.log.debug(self.nodes)
         return inode
+
+    def __remove_inode(self, inode):
+        self.log.info("Remove inode %d.", inode)
+        try:
+            del self.nodes[inode]
+        except KeyError:
+            self.log.warning("Inode %d doesn't exist.", inode)
+
+    def __get_children(self, inode):
+        if type(self.nodes[inode]) is not Directory:
+            self.log.error("Inode %d is no directory.")
+            raise NotADirectoryError("Inode %d is no directory.")
+        return [idx for idx in self.nodes if self.nodes[idx].get_parent() == inode]
 
     def __get_path(self, parent_inode, name):
         self.log.debug("__get_path for inode with name %s", name)
@@ -152,7 +165,7 @@ class TestFs(pyfuse3.Operations):
             return self.nodes[inode].get_attr()
 
         else:
-            entry = pyfuse3.EntryAttributes()
+            entry = EntryAttributes()
             node = None
             # TODO: Here is a fundamental error! somehow everything is freezing.
             try:
@@ -338,8 +351,8 @@ class TestFs(pyfuse3.Operations):
             parent_path = self.nodes[parent_inode].get_full_path()
             if node is None:
                 self.log.debug("Found no corresponing file to swap %s with name %s", name, src_name)
-                node = self.nodes[self.__add_inode(src_name, parent_path)]
-            return self.__getattr(self.__add_inode(name, parent_path, data=node.get_data()))
+                node = self.nodes[self.__add_inode(src_name, parent_path, parent_inode)]
+            return self.__getattr(self.__add_inode(name, parent_path, parent_inode, data=node.get_data()))
 
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
@@ -348,7 +361,7 @@ class TestFs(pyfuse3.Operations):
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
 
-        attr = pyfuse3.EntryAttributes()
+        attr = EntryAttributes()
         attr.st_ino = 0
 
         return attr
@@ -404,8 +417,7 @@ class TestFs(pyfuse3.Operations):
         '''
         try:
             self.log.debug("Trying to get inode")
-            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path())
-            self.nodes[parent_inode].add_child(inode)
+            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path(), parent_inode)
             self.log.debug("Got inode %d", inode)
             attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
@@ -576,19 +588,22 @@ class TestFs(pyfuse3.Operations):
 
         for (inode, nlookup) in inode_list:
             self.log.debug("inode: %d, nlookup: %d", inode, nlookup)
-            if self.nodes[inode].get_lookup() > nlookup:
-                self.nodes[inode].decrease_lookup(nlookup)
-                continue
-            self.log.debug('forgetting about inode %d', inode)
-
-            # TODO: Check if that is needed.
-            # This assert proves that inode is not used currently.
-            # assert inode not in self._inode_fd_map
-
             try:
-                del self.nodes[inode]
+                if self.nodes[inode].get_lookup() > nlookup:
+                    self.nodes[inode].decrease_lookup(nlookup)
+                    self.log.debug("inode %d with lookup count of %d", inode, self.nodes[inode].get_lookup())
+                    continue
+                self.log.debug('forgetting about inode %d', inode)
+
+                # TODO: Check if that is needed.
+                # This assert proves that inode is not used currently.
+                # assert inode not in self._inode_fd_map
+
             except KeyError:  # may have been deleted
+                self.log.warning("Inode %d does not exist anymore.", inode)
                 pass
+            finally:
+                self.__remove_inode(inode)
 
     async def fsync(self, inode, datasync):
         '''Flush buffers for open file *fh*
@@ -698,9 +713,8 @@ class TestFs(pyfuse3.Operations):
         self.log.info("mkdir: %s", name)
         self.log.info("----")
 
-        inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path(), node_type=DIR_TYPE)
-        self.nodes[parent_inode].add_child(inode)
-        return self.__getattr(inode)
+        return self.__getattr(self.__add_inode(name, self.nodes[parent_inode].get_full_path(), parent_inode,
+                                               node_type=DIR_TYPE))
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
         try:
@@ -726,7 +740,7 @@ class TestFs(pyfuse3.Operations):
         self.log.debug("start_id: %s", start_id)
         dir_path = self.nodes[inode].get_full_path()
         self.log.debug("dirpath: %s", dir_path)
-        arr = self.nodes[inode].get_children()
+        arr = self.__get_children(inode)
         self.log.debug("items in dir: %d", len(arr))
         try:
             for key in arr:
@@ -810,12 +824,10 @@ class TestFs(pyfuse3.Operations):
 
 '''
         try:
-            parent_node = self.nodes[parent_inode]
+            self.log.debug("Getting childs of: %s", self.nodes[parent_inode].get_name())
+            self.log.debug(self.__get_children(parent_inode))
 
-            self.log.debug("Getting childs of: %s", parent_node.get_name())
-            self.log.debug(parent_node.get_children())
-
-            filtered_list = [idx for idx in parent_node.get_children() if self.nodes[idx].get_name() == name]
+            filtered_list = [idx for idx in self.__get_children(parent_inode) if self.nodes[idx].get_name() == name]
 
             self.log.debug("filtered list with name %s:", name)
             self.log.debug(filtered_list)
@@ -827,10 +839,9 @@ class TestFs(pyfuse3.Operations):
             self.log.info("Removing inode %i", idx)
             # Forget path for readdir. But it will be accessible via getattr, if lookup_count > 1.
             if self.nodes[idx].get_lookup() <= 1:
-                del self.nodes[idx]
+                self.__remove_inode(idx)
             else:
                 self.nodes[idx].set_unlink(True)
-            
         except Exception as e:
             self.log.error(e)
 
