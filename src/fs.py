@@ -45,12 +45,10 @@ class TestFs(pyfuse3.Operations):
         self._fd_open_count = dict()
 
     def __add_inode(self, name, path, parent, node_type=FILE_TYPE, data=""):
-        self.log.info('__add_inode for %s', path)
-        '''
-        if len(self.nodes) == 0:
-            inode = pyfuse3.ROOT_INODE + 1
-        else:
-        '''
+        self.log.info('__add_inode with path %s and name %s', path, name)
+        if path[-1] != os.path.sep:
+            path += os.path.sep
+            self.log.debug("new path: %s", path)
         inode = list(self.nodes.keys())[-1] + 1
 
         # With hardlinks, one inode may map to multiple paths.

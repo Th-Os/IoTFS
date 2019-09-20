@@ -8,6 +8,8 @@ import pytest
 
 ROOT_DIR = "dir"
 
+# test_file: FileNotFoundError when executing a second time. Why?
+
 
 def test_file():
     with open(os.path.join(ROOT_DIR, 'file_one'), 'w+') as fh1:

@@ -49,6 +49,10 @@ class MQTT(mqtt.Client):
         self.log.debug(
             "going to open files (%d) and write in them.", len(payload.items()))
 
+        self.log.debug(payload)
+
+        '''
+
         for key, value in payload.items():
             self.log.info("Key: %s, value: %s", key, value)
             try:
@@ -68,6 +72,7 @@ class MQTT(mqtt.Client):
                         self.log.debug("Wrote %d characters", size)
             except Exception as e:
                 self.log.error(e.with_traceback().msg)
+        '''
 
     def run(self):
         self.connect("localhost", 1883, 60)
