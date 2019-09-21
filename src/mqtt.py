@@ -51,28 +51,31 @@ class MQTT(mqtt.Client):
 
         self.log.debug(payload)
 
-        '''
-
         for key, value in payload.items():
             self.log.info("Key: %s, value: %s", key, value)
+
             try:
                 # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
-                self.log.debug("will open: %s", str(
-                    os.path.join(os.path.abspath(directory), key)))
-                if os.path.isfile(os.path.join(os.path.abspath(directory), key)):
-                    with open(os.path.join(os.path.abspath(directory), key), 'w') as f:
+                file_path = os.path.join(os.path.abspath(directory), key)
+                self.log.debug("will open: %s", file_path)
+
+                if os.path.isfile(file_path):
+                    '''
+                    with open(file_path, 'w') as f:
                         self.log.debug("Will write %s to %s", value, f)
                         size = f.write(value)
                         self.log.debug("Wrote %d characters", size)
+                    '''
                 else:
                     self.log.debug("File doesn't exist. Creating file.")
-                    with open(os.path.join(os.path.abspath(directory), key), 'x') as f:
-                        self.log.debug("Will write %s to %s", value, f)
-                        size = f.write(value)
-                        self.log.debug("Wrote %d characters", size)
+
+                    with open(file_path, 'x') as f:
+                        self.log.debug("Will write %s to %s", value, file_path)
+                        # size = f.write(value)
+                        # self.log.debug("Wrote %d characters", size)
+
             except Exception as e:
-                self.log.error(e.with_traceback().msg)
-        '''
+                self.log.error(e)
 
     def run(self):
         self.connect("localhost", 1883, 60)

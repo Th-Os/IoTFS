@@ -13,7 +13,7 @@ SWAP_TYPE = 2
 
 class Node():
 
-    def __init__(self, name, path, parent, file_type, attr, unlink):
+    def __init__(self, name, path, parent, file_type, attr, unlink, open_count):
         self.set_name(name)
         self.path = path
         self.parent = parent
@@ -21,8 +21,8 @@ class Node():
         self.attr = attr
         self.unlink = unlink
 
-        # Creating a node means the systems looks it up.
-        self.lookup_count = 1
+        # Creating, opening, closing and removing a file, will result in open_count
+        self.open_count = open_count
 
         # If rm or rmdir -> node needs to exist but ls mustn't show the item
         self.invisible = False
@@ -70,17 +70,17 @@ class Node():
             return False
         return self.unlink
 
-    def set_unlink(self, unlink):
+    def set_unlink(self, unlink=True):
         self.unlink = unlink
 
-    def increase_lookup(self, amount=1):
-        self.lookup_count += amount
+    def inc_open_count(self, amount=1):
+        self.open_count += amount
 
-    def decrease_lookup(self, amount=1):
-        self.lookup_count -= amount
+    def dec_open_count(self, amount=1):
+        self.open_count -= amount
 
-    def get_lookup(self):
-        return self.lookup_count
+    def get_open_count(self):
+        return self.open_count
 
     def set_visible(self):
         self.invisible = False
@@ -95,19 +95,20 @@ class Node():
             "parent": self.parent,
             "type": self.type,
             "unlink": self.unlink,
-            "lookup_count": self.lookup_count,
+            "open_count": self.open_count,
             "invisible": self.invisible
         }
 
     def __repr__(self):
-        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3}, lookup_count: {4}, invisible: {5})".format(
-            self.name, self.path, self.type, self.unlink, self.lookup_count, self.invisible)
+        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3}, open_count: {4}, invisible: {5})".format(
+            self.name, self.path, self.type, self.unlink, self.open_count, self.invisible)
 
 
 class File(Node):
 
-    def __init__(self, name, path, parent=0, data="", attr=None, unlink=False):
-        super().__init__(name, path, parent, FILE_TYPE, attr=attr, unlink=unlink)
+    def __init__(self, name, path, parent=0, data="", attr=None, unlink=False, open_count=0):
+        super().__init__(name, path, parent, FILE_TYPE,
+                         attr=attr, unlink=unlink, open_count=open_count)
         self.set_data(data)
         if self.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
             self.set_type(SWAP_TYPE)
@@ -142,14 +143,15 @@ class File(Node):
             "type: {0}, ".format(self.type) +\
             "data: {0}, ".format(self.data) +\
             "unlink: {0}, ".format(self.unlink) +\
-            "lookup_count: {0}, ".format(self.lookup_count) +\
+            "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}) ".format(self.invisible)
 
 
 class Directory(Node):
 
-    def __init__(self, name, path, parent=0, attr=None, unlink=False, root=False):
-        super().__init__(name, path, parent, DIR_TYPE, attr=attr, unlink=unlink)
+    def __init__(self, name, path, parent=0, attr=None, unlink=False, root=False, open_count=0):
+        super().__init__(name, path, parent, DIR_TYPE,
+                         attr=attr, unlink=unlink, open_count=open_count)
         self.root = root
 
     def is_root(self):
@@ -173,7 +175,7 @@ class Directory(Node):
             "type: {0}, ".format(self.type) +\
             "root: {0}, ".format(self.root) +\
             "unlink: {0}, ".format(self.unlink) +\
-            "lookup_count: {0}, ".format(self.lookup_count) +\
+            "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible)
 
 

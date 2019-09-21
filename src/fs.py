@@ -25,6 +25,16 @@ from node import File, Directory, EntryAttributes, DIR_TYPE, SWAP_TYPE, FILE_TYP
 import utils
 
 
+def wrapper(func):
+    async def f(*args, **kwargs):
+        args[0].log.info("unique: %d, operation: %s", args[0].unique, func.__name__)
+        result = await func(*args, **kwargs)
+        args[0].log.info("unique: %d, success", args[0].unique)
+        args[0].unique += 1
+        return result
+    return f
+
+
 class TestFs(pyfuse3.Operations):
 
     supports_dot_lookup = True
@@ -33,6 +43,9 @@ class TestFs(pyfuse3.Operations):
 
     def __init__(self, mount_point, debug=False):
         super(TestFs, self).__init__()
+
+        # fuse debug starts with 2 for operations
+        self.unique = 2
         self.log = utils.init_logging(self.__class__.__name__, debug)
         self.log.info("Init %s", self.__class__.__name__)
         self.nodes = dict()
@@ -44,7 +57,8 @@ class TestFs(pyfuse3.Operations):
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
-    def __add_inode(self, name, path, parent, node_type=FILE_TYPE, data=""):
+    def __add_inode(self, name, parent_inode, node_type=FILE_TYPE, data=""):
+        path = self.nodes[parent_inode].get_full_path()
         self.log.info('__add_inode with path %s and name %s', path, name)
         if path[-1] != os.path.sep:
             path += os.path.sep
@@ -56,16 +70,20 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("Found no inode")
             self.log.debug("Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == FILE_TYPE or node_type == SWAP_TYPE:
-                self.nodes[inode] = File(name, path, parent, data)
+                self.nodes[inode] = File(name, path, parent_inode, data)
             else:
-                self.nodes[inode] = Directory(name, path, parent)
+                self.nodes[inode] = Directory(name, path, parent_inode)
+            self.nodes[inode].inc_open_count()
             self.log.debug(self.nodes)
         return inode
 
-    def __remove_inode(self, inode):
-        self.log.info("Remove inode %d.", inode)
+    def __try_remove_inode(self, inode):
+        self.log.info("Trying to remove inode %d.", inode)
         try:
-            del self.nodes[inode]
+            if self.nodes[inode].get_open_count() <= 1:
+                del self.nodes[inode]
+            else:
+                self.log.debug("Didn't remove inode %d", inode)
         except KeyError:
             self.log.warning("Inode %d doesn't exist.", inode)
 
@@ -209,12 +227,14 @@ class TestFs(pyfuse3.Operations):
 
         return entry
 
+    @wrapper
     async def getattr(self, inode, ctx=None):
         self.log.info("----")
         self.log.info("getattr: %i", inode)
         self.log.info("----")
         return self.__getattr(inode)
 
+    @wrapper
     async def setattr(self, inode, attr, fields, fh, ctx):
         self.log.info("----")
         self.log.info("setattr: %d", inode)
@@ -270,6 +290,7 @@ class TestFs(pyfuse3.Operations):
         return await self.getattr(inode)
 
     # http://man7.org/linux/man-pages/man7/xattr.7.html
+    @wrapper
     async def setxattr(self, inode, name, value, ctx):
         '''Set extended attribute *name* of *inode* to *value*.
         *ctx* will be a `RequestContext` instance.
@@ -285,6 +306,7 @@ class TestFs(pyfuse3.Operations):
 
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def getxattr(self, inode, name, ctx):
         '''Return extended attribute *name* of *inode*
         *ctx* will be a `RequestContext` instance.
@@ -301,6 +323,7 @@ class TestFs(pyfuse3.Operations):
         # https://github.com/libfuse/pyfuse3/blob/master/src/xattr.h ENOATTR = ENODATA
         raise FUSEError(errno.ENODATA)
 
+    @wrapper
     async def lookup(self, parent_inode, name, ctx=None):
         '''Look up a directory entry by name and get its attributes.
         This method should return an `EntryAttributes` instance for the
@@ -326,31 +349,25 @@ class TestFs(pyfuse3.Operations):
         self.log.info("Parent Inode: %i", parent_inode)
         name = name.decode("utf-8")
         self.log.debug("Name: %s", name)
-        self.log.debug("swp? %s", name[-4:])
-
         self.log.debug("Trying to find existing inode")
-        for key, node in self.nodes.items():
+        children = self.__get_children(parent_inode)
+        for inode in children:
+            node = self.nodes[inode]
             if node.get_name(encoding=UTF_8_ENCODING) == name:
-                self.log.debug("%s, %s have the same name",
-                               node.get_name(encoding=UTF_8_ENCODING), name)
-                self.log.debug("parent path: %s", self.nodes[parent_inode].get_full_path())
-                self.log.debug("node path: %s", node.get_path())
-                if self.nodes[parent_inode].get_full_path() == node.get_path():
-                    self.log.debug("Found existing inode %d", key)
-                    self.nodes[key].increase_lookup()
-                    return self.__getattr(key)
+                self.log.debug("Found existing inode %d", inode)
+                return self.__getattr(inode)
         self.log.debug("Couldn't find inode. Is it a swap file?")
+        self.log.debug("swp? %s", name[-4:])
         if name[-4:] == ".swp":
             self.log.debug("Found .swp")
 
             # Name of source file: .x.swp -> x
             src_name = name[1:-4]
             node = self.__get_node_by_name(src_name)
-            parent_path = self.nodes[parent_inode].get_full_path()
             if node is None:
                 self.log.debug("Found no corresponing file to swap %s with name %s", name, src_name)
-                node = self.nodes[self.__add_inode(src_name, parent_path, parent_inode)]
-            return self.__getattr(self.__add_inode(name, parent_path, parent_inode, data=node.get_data()))
+                node = self.nodes[self.__add_inode(src_name, parent_inode)]
+            return self.__getattr(self.__add_inode(name, parent_inode, data=node.get_data()))
 
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
@@ -364,7 +381,7 @@ class TestFs(pyfuse3.Operations):
 
         return attr
 
-    # TODO: Not enough data
+    @wrapper
     async def open(self, inode, flags, ctx):
         self.log.info("----")
         self.log.info("open: %d", inode)
@@ -384,11 +401,17 @@ class TestFs(pyfuse3.Operations):
         self._fd_open_count[fd] = 1
         return fd
         """
+        try:
+            self.nodes[inode].inc_open_count()
+        except KeyError:
+            self.warning("Inode %d does not exist.", inode)
         if flags & os.O_RDWR or flags & os.O_WRONLY:
             self.log.error("False permission.")
-            # raise pyfuse3.FUSEError(errno.EPERM)
+            self.log.debug(flags)
+            raise pyfuse3.FUSEError(errno.EPERM)
         return inode
 
+    @wrapper
     async def read(self, inode, off, size):
         self.log.info("----")
         self.log.info("read: %d", inode)
@@ -397,6 +420,7 @@ class TestFs(pyfuse3.Operations):
         return self.nodes[inode].get_data()[off: off+size]
 
     # TODO: implement mode and flags
+    @wrapper
     async def create(self, parent_inode, name, mode, flags, ctx):
         self.log.info("----")
         self.log.info("create: %s", name)
@@ -415,7 +439,7 @@ class TestFs(pyfuse3.Operations):
         '''
         try:
             self.log.debug("Trying to get inode")
-            inode = self.__add_inode(name, self.nodes[parent_inode].get_full_path(), parent_inode)
+            inode = self.__add_inode(name, parent_inode)
             self.log.debug("Got inode %d", inode)
             attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
@@ -439,6 +463,7 @@ class TestFs(pyfuse3.Operations):
 
         return (inode, attr)
 
+    @wrapper
     async def write(self, inode, off, buf):
         self.log.info(self.nodes)
         self.log.info("----")
@@ -466,12 +491,14 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("output: %s", output)
             self.log.debug("current data: %s", self.nodes[inode].get_data())
             self.nodes[inode].set_data(output)
-
+        except KeyError:
+            self.log.warning("Inode %d does not exist.", inode)
         except Exception as e:
             self.log.error(e)
-            self.log.error("Write was not successful")
+            self.log.error("Write was not successful.")
         return len(buf)
 
+    @wrapper
     async def access(self, inode, mode, ctx):
         '''Check if requesting process has *mode* rights on *inode*.
         *ctx* will be a `RequestContext` instance.
@@ -489,6 +516,7 @@ class TestFs(pyfuse3.Operations):
 
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def release(self, inode):
         self.log.info("----")
         self.log.info("release: %s", inode)
@@ -504,25 +532,10 @@ class TestFs(pyfuse3.Operations):
         This method may return an error by raising `FUSEError`, but the error
         will be discarded because there is no corresponding client request.
         '''
-        """
-        if self._fd_open_count[fd] > 1:
-            self._fd_open_count[fd] -= 1
-            return
+        self.nodes[inode].dec_open_count()
+        self.__try_remove_inode(inode)
 
-        del self._fd_open_count[fd]
-        inode = self._fd_inode_map[fd]
-        del self._inode_fd_map[inode]
-        del self._fd_inode_map[fd]
-        try:
-            os.close(fd)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        """
-        if self.nodes[inode].type == SWAP_TYPE:
-            self.log.debug("deleting %s", self.nodes[inode])
-            del self.nodes[inode]
-        self.log.debug(self.nodes)
-
+    @wrapper
     async def unlink(self, parent_inode, name, ctx):
         self.log.info("----")
         self.log.info("unlink: %s", name)
@@ -543,19 +556,25 @@ class TestFs(pyfuse3.Operations):
             associated with the inode either).
             '''
 
-        idx = self.__get_index_by_name(name)
-        self.nodes[idx].set_unlink(True)
-        self.log.info("inode: %d", idx)
+        children = self.__get_children(parent_inode)
+        if len(children) == 0:
+            self.log.warning("Found no children for parent_inode %d.", parent_inode)
+            return
+        for inode in children:
+            try:
+                if self.nodes[inode].get_name() == name:
+                    self.log.info("Unlink inode: %d", inode)
+                    self.nodes[inode].set_unlink()
+                    self.__try_remove_inode(inode)
+            except KeyError:
+                self.log.warning("Inode %d does not exist.", inode)
 
-        # unlink is not prohibited to delete a item -> forget method
-        # del self.nodes[idx]
-
-        # TODO: forget path(s)
-
+    @wrapper
     async def flush(self, inode):
         self.log.info("----")
         self.log.info("flush: %d", inode)
         self.log.info("----")
+        
         '''Handle close() syscall.
         *fh* will by an integer filehandle returned by a prior `open` or
         `create` call.
@@ -564,6 +583,9 @@ class TestFs(pyfuse3.Operations):
         has been duplicated).
         '''
 
+        self.nodes[inode].dec_open_count()
+
+    @wrapper
     async def forget(self, inode_list):
         self.log.info("----")
         self.log.info("forget: %s", inode_list)
@@ -588,21 +610,16 @@ class TestFs(pyfuse3.Operations):
             self.log.debug("inode: %d, nlookup: %d", inode, nlookup)
             try:
                 if self.nodes[inode].get_lookup() > nlookup:
-                    self.nodes[inode].decrease_lookup(nlookup)
+                    self.nodes[inode].dec_open_count(nlookup)
                     self.log.debug("inode %d with lookup count of %d", inode, self.nodes[inode].get_lookup())
-                    continue
-                self.log.debug('forgetting about inode %d', inode)
-
-                # TODO: Check if that is needed.
-                # This assert proves that inode is not used currently.
-                # assert inode not in self._inode_fd_map
 
             except KeyError:  # may have been deleted
                 self.log.warning("Inode %d does not exist anymore.", inode)
                 pass
             finally:
-                self.__remove_inode(inode)
+                self.__try_remove_inode(inode)
 
+    @wrapper
     async def fsync(self, inode, datasync):
         '''Flush buffers for open file *fh*
         If *datasync* is true, only the file contents should be
@@ -616,6 +633,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def symlink(self, parent_inode, name, target, ctx):
         '''Create a symbolic link
         This method must create a symbolink link named *name* in the directory
@@ -632,6 +650,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
         '''Rename a directory entry.
         This method must rename *name_old* in the directory with inode
@@ -663,6 +682,7 @@ class TestFs(pyfuse3.Operations):
 
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def link(self, inode, new_parent_inode, new_name, ctx):
         '''Create directory entry *name* in *parent_inode* refering to *inode*.
         *ctx* will be a `RequestContext` instance.
@@ -678,6 +698,7 @@ class TestFs(pyfuse3.Operations):
 
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def readlink(self, inode, ctx):
         '''Return target of symbolic link *inode*.
         *ctx* will be a `RequestContext` instance.
@@ -688,6 +709,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("readlink: %i", inode)
         self.log.info("----")
 
+    @wrapper
     async def mknod(self, parent_inode, name, mode, rdev, ctx):
         '''Create (possibly special) file
         This method must create a (special or regular) file *name* in the
@@ -704,14 +726,18 @@ class TestFs(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("mknod: %s", name)
         self.log.info("----")
-        # raise FUSEError(errno.ENOSYS)
+        
+        # TODO: implement mode and rdev behavior
+        inode = self.__add_inode(name, parent_inode)
+        return self.__getattr(inode)
 
+    @wrapper
     async def mkdir(self, parent_inode, name, mode, ctx):
         self.log.info("----")
         self.log.info("mkdir: %s", name)
         self.log.info("----")
 
-        return self.__getattr(self.__add_inode(name, self.nodes[parent_inode].get_full_path(), parent_inode,
+        return self.__getattr(self.__add_inode(name, parent_inode,
                                                node_type=DIR_TYPE))
         """
         path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
@@ -725,12 +751,15 @@ class TestFs(pyfuse3.Operations):
         return attr
         """
 
+    @wrapper
     async def opendir(self, inode, ctx):
         self.log.info("----")
         self.log.info("opendir: %d", inode)
         self.log.info("----")
+        self.nodes[inode].inc_open_count()
         return inode
 
+    @wrapper
     async def readdir(self, inode, start_id, token):
         self.log.info("----")
         self.log.info("readdir: %d", inode)
@@ -768,6 +797,7 @@ class TestFs(pyfuse3.Operations):
         return
 
     # TODO: Fix rmdir ... not working correctly
+    @wrapper
     async def rmdir(self, parent_inode, name, ctx):
         self.log.info("----")
         self.log.info("rmdir: %s", name)
@@ -832,17 +862,15 @@ class TestFs(pyfuse3.Operations):
 
             if len(filtered_list) > 1:
                 self.log.error("Found more than one node.")
-            idx = filtered_list[0]
+            inode = filtered_list[0]
 
-            self.log.info("Removing inode %i", idx)
             # Forget path for readdir. But it will be accessible via getattr, if lookup_count > 1.
-            if self.nodes[idx].get_lookup() <= 1:
-                self.__remove_inode(idx)
-            else:
-                self.nodes[idx].set_unlink(True)
+            self.nodes[inode].set_unlink(True)
+            self.__try_remove_inode(inode)
         except Exception as e:
             self.log.error(e)
 
+    @wrapper
     async def releasedir(self, inode):
         self.log.info("----")
         self.log.info("releasedir: %d", inode)
@@ -852,9 +880,9 @@ class TestFs(pyfuse3.Operations):
         *fh* has been released, no further `readdir` requests will be received
         for it (until it is opened again with `opendir`).
         '''
+        self.nodes[inode].dec_open_count()
 
-        pass
-
+    @wrapper
     async def fsyncdir(self, inode, datasync):
         '''Flush buffers for open directory *fh*
         If *datasync* is true, only the directory contents should be
@@ -867,17 +895,34 @@ class TestFs(pyfuse3.Operations):
 
         # raise FUSEError(errno.ENOSYS)
 
+    @wrapper
     async def statfs(self, ctx):
         '''Get file system statistics
         *ctx* will be a `RequestContext` instance.
         The method must return an appropriately filled `StatvfsData` instance.
+
+        Exampe of tmpfs:
+        stat_.f_bsize = 512
+        stat_.f_frsize = 512
+
+        size = self.get_row('SELECT SUM(size) FROM inodes')[0]
+        stat_.f_blocks = size // stat_.f_frsize
+        stat_.f_bfree = max(size // stat_.f_frsize, 1024)
+        stat_.f_bavail = stat_.f_bfree
+
+        inodes = self.get_row('SELECT COUNT(id) FROM inodes')[0]
+        stat_.f_files = inodes
+        stat_.f_ffree = max(inodes , 100)
+        stat_.f_favail = stat_.f_ffree
         '''
 
         self.log.info("----")
         self.log.info("statfs")
         self.log.info("----")
 
-        # raise FUSEError(errno.ENOSYS)
+        # TODO: Implement propagation of stats
+        stats = pyfuse3.StatvfsData()
+        return stats
 
     def stacktrace(self):
         '''Asynchronous debugging
@@ -904,6 +949,7 @@ class TestFs(pyfuse3.Operations):
 
         self.log.error("\n".join(code))
 
+    @wrapper
     async def listxattr(self, inode, ctx):
         '''Get list of extended attributes for *inode*
         *ctx* will be a `RequestContext` instance.
@@ -916,6 +962,7 @@ class TestFs(pyfuse3.Operations):
         self.log.info("listxattr: %d", inode)
         self.log.info("----")
 
+    @wrapper
     async def removexattr(self, inode, name, ctx):
         '''Remove extended attribute *name* of *inode*
         *ctx* will be a `RequestContext` instance.
@@ -931,8 +978,6 @@ class TestFs(pyfuse3.Operations):
 
 
 async def start_async(mount_point, debug, debug_fuse):
-    utils.init_logging("pyfuse3", debug_fuse)
-
     testfs = TestFs(mount_point, debug)
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=iotfs')
@@ -953,7 +998,6 @@ async def start_async(mount_point, debug, debug_fuse):
 
 def start(mount_point, debug, debug_fuse):
     fuse_log = utils.init_logging("pyfuse3", debug_fuse)
-
     testfs = TestFs(mount_point, debug)
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=iotfs')
