@@ -115,3 +115,6 @@ dmypy.json
 
 # Push
 .push.settings.jsonc
+
+# vscode
+.vscode

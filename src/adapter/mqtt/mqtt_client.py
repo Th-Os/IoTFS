@@ -3,9 +3,10 @@ import os
 import json
 
 import utils
+from adapter._client import Client
 
 
-class MQTT(mqtt.Client):
+class MQTT(mqtt.Client, Client):
 
     def __init__(self, entry_point, debug):
         super().__init__("Listener")
@@ -71,6 +72,7 @@ class MQTT(mqtt.Client):
 
                     with open(file_path, 'x') as f:
                         self.log.debug("Will write %s to %s", value, file_path)
+                        self.log.debug("writable: %s", f.writable())
                         # size = f.write(value)
                         # self.log.debug("Wrote %d characters", size)
 
@@ -81,11 +83,3 @@ class MQTT(mqtt.Client):
         self.connect("localhost", 1883, 60)
         self.subscribe([("#", 0), ("$SYS/#", 0)])
         self.loop_forever()
-
-
-async def start_async(entry_point, debug=False):
-    MQTT(entry_point, debug).run()
-
-
-def start(entry_point, debug=False):
-    MQTT(entry_point, debug).run()
