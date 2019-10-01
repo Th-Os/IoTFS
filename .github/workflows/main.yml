@@ -39,6 +39,7 @@ jobs:
         run: |
           mkdir dir
           nohup python3 -u ./src/main.py dir --debug-fuse --debug &
+          echo $! > app.pid
       - name: Application status
         run: |
           ls
@@ -52,5 +53,5 @@ jobs:
           pytest
       - name: Stop Application
         run: |
-          ps ax | grep python3 # kill resulting PID
+          kill `cat app.pid` # kill resulting PID
           sudo umount dir
