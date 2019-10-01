@@ -27,6 +27,10 @@ jobs:
           ls /usr/local/lib
           ls /lib
           sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.3.6.2 /lib/x86_64-linux-gnu/libfuse3.so.3
+      - name: Install MQTT Broker
+        run: |
+          sudo apt-get install mosquitto
+          echo `service mosquitto status`
       - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Install dependencies
