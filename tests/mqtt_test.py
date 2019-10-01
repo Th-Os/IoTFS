@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-import pytest
 import os
 
 import logging

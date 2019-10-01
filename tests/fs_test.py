@@ -1,10 +1,4 @@
-'''
-This code should run successfully.
-https://www.rath.org/pyfuse3-docs/gotchas.html
-'''
-
 import os
-import pytest
 import logging
 
 ROOT_DIR = "dir"
@@ -12,6 +6,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def test_file():
+    '''
+    This code should run successfully.
+    https://www.rath.org/pyfuse3-docs/gotchas.html
+    '''
     # test_file: FileNotFoundError when executing a second time. Why?
     file_path = os.path.join(ROOT_DIR, 'file_one')
     assert os.path.exists(file_path) is False
