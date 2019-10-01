@@ -3,7 +3,6 @@
 
 import pyfuse3
 from pyfuse3 import FUSEError
-import logging
 import trio
 
 import utils

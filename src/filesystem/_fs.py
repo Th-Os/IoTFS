@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import trio
+import utils
 import pyfuse3
 import errno
-import logging
 import stat
 import time
 import os
@@ -18,8 +17,8 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from filesystem.node import File, Directory, EntryAttributes, DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
-import utils
+from filesystem.node import File, Directory, EntryAttributes
+from filesystem.node import DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
 
 
 def wrapper(func):

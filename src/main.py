@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-import trio
 import concurrent.futures
 import os
 
