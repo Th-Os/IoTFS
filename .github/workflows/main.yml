@@ -42,11 +42,9 @@ jobs:
           echo $! > app.pid
       - name: Application status
         run: |
-          ls
-          cat logs/pyfuse3.log
-          cat logs/TestFs.log
-          cat logs/MQTT.log
           ps ax | grep python3
+          ls
+          cat logs/*.log
       - name: Test with pytest
         run: |
           pip install pytest
