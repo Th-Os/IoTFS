@@ -81,11 +81,34 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("Trying to remove inode %d.", inode)
         try:
             if self.nodes[inode].get_open_count() <= 1:
+                self.log.debug("Removed inode %d", inode)
                 del self.nodes[inode]
             else:
                 self.log.debug("Didn't remove inode %d", inode)
         except KeyError:
             self.log.warning("Inode %d doesn't exist.", inode)
+
+    def __try_decrease_op_count(self, inode):
+        self.log.warning("Trying to decrease op count of %d.", inode)
+        try:
+            self.nodes[inode].dec_open_count()
+            if self.nodes[inode].get_open_count() == 0:
+                self.nodes[inode].lock()
+            self.log.warning("New op count: %d",
+                             self.nodes[inode].get_open_count())
+        except KeyError:
+            self.log.error("No inode with key %d.", inode)
+        except Exception as e:
+            self.log.error(e)
+
+    def __try_increase_op_count(self, inode):
+        self.log.warning("Trying to increase op count of %d.", inode)
+        try:
+            self.nodes[inode].inc_open_count()
+        except KeyError:
+            self.warning("Inode %d does not exist.", inode)
+        except Exception as e:
+            self.log.error(e)
 
     def __get_children(self, inode):
         if type(self.nodes[inode]) is not Directory:
@@ -359,7 +382,11 @@ class _FileSystem(pyfuse3.Operations):
             node = self.nodes[inode]
             if node.get_name(encoding=UTF_8_ENCODING) == name:
                 self.log.debug("Found existing inode %d", inode)
-                return self.__getattr(inode)
+                if self.nodes[inode].is_locked():
+                    self.log.error("Inode %d is locked", inode)
+                    raise FUSEError(errno.ENOENT)
+                else:
+                    return self.__getattr(inode)
         self.log.debug("Couldn't find inode. Is it a swap file?")
         self.log.debug("swp? %s", name[-4:])
         if name[-4:] == ".swp":
@@ -391,28 +418,17 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("open: %d", inode)
         self.log.info("----")
-        """
-        if inode in self._inode_fd_map:
-            fd = self._inode_fd_map[inode]
-            self._fd_open_count[fd] += 1
-            return fd
+
+        self.__try_increase_op_count(inode)
+
         assert flags & os.O_CREAT == 0
-        try:
-            fd = os.open(self._inode_to_path(inode), flags)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        self._inode_fd_map[inode] = fd
-        self._fd_inode_map[fd] = inode
-        self._fd_open_count[fd] = 1
-        return fd
-        """
-        try:
-            self.nodes[inode].inc_open_count()
-        except KeyError:
-            self.warning("Inode %d does not exist.", inode)
-        if flags & os.O_RDWR or flags & os.O_WRONLY:
+        if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
             self.log.error("False permission.")
-            self.log.debug(flags)
+            self.log.debug("read write: %d", flags & os.O_RDWR)
+            self.log.debug("read only: %d", flags & os.O_RDONLY)
+            self.log.debug("read write: %d", flags & os.O_WRONLY)
+            self.log.debug("append: %d", flags & os.O_APPEND)
+            self.log.debug("whole flags: %d", flags)
             raise pyfuse3.FUSEError(errno.EPERM)
         return inode
 
@@ -537,8 +553,7 @@ class _FileSystem(pyfuse3.Operations):
         This method may return an error by raising `FUSEError`, but the error
         will be discarded because there is no corresponding client request.
         '''
-        self.nodes[inode].dec_open_count()
-        self.__try_remove_inode(inode)
+        self.__try_decrease_op_count(inode)
 
     @wrapper
     async def unlink(self, parent_inode, name, ctx):
@@ -569,9 +584,10 @@ class _FileSystem(pyfuse3.Operations):
         for inode in children:
             try:
                 if self.nodes[inode].get_name() == name:
-                    self.log.info("Unlink inode: %d", inode)
-                    self.nodes[inode].set_unlink()
-                    self.__try_remove_inode(inode)
+                    self.log.info("Lock inode: %d", inode)
+                    self.nodes[inode].set_invisible()
+                    if self.nodes[inode].get_open_count() == 1:
+                        self.nodes[inode].lock()
             except KeyError:
                 self.log.warning("Inode %d does not exist.", inode)
 
@@ -589,7 +605,8 @@ class _FileSystem(pyfuse3.Operations):
         has been duplicated).
         '''
 
-        self.nodes[inode].dec_open_count()
+        # TODO: Really decrease op count?
+        # self.__try_decrease_op_count(inode)
 
     @wrapper
     async def forget(self, inode_list):
@@ -615,10 +632,10 @@ class _FileSystem(pyfuse3.Operations):
         for (inode, nlookup) in inode_list:
             self.log.debug("inode: %d, nlookup: %d", inode, nlookup)
             try:
-                if self.nodes[inode].get_lookup() > nlookup:
+                if self.nodes[inode].get_open_count() > nlookup:
                     self.nodes[inode].dec_open_count(nlookup)
                     self.log.debug("inode %d with lookup count of %d",
-                                   inode, self.nodes[inode].get_lookup())
+                                   inode, self.nodes[inode].get_open_count())
 
             except KeyError:  # may have been deleted
                 self.log.warning("Inode %d does not exist anymore.", inode)
@@ -763,7 +780,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("opendir: %d", inode)
         self.log.info("----")
-        self.nodes[inode].inc_open_count()
+        self.__try_increase_op_count(inode)
         return inode
 
     @wrapper
@@ -791,8 +808,8 @@ class _FileSystem(pyfuse3.Operations):
                     self.log.debug("swp: %s", node.get_name())
                     continue
                 self.log.debug("before unlink check")
-                if node.is_unlink() is True:
-                    self.log.debug("Node %s is unlinked.", node.get_name())
+                if node.is_invisible() is True:
+                    self.log.debug("Node %s is invisible.", node.get_name())
                     continue
                 self.log.debug("before readdir of %s", node.get_name())
                 if not pyfuse3.readdir_reply(token, node.get_name(), await self.getattr(key), key):
@@ -843,8 +860,9 @@ class _FileSystem(pyfuse3.Operations):
             inode = filtered_list[0]
 
             # Forget path for readdir. But it will be accessible via getattr, if lookup_count > 1.
-            self.nodes[inode].set_unlink(True)
-            self.__try_remove_inode(inode)
+            self.nodes[inode].set_invisible()
+            if self.nodes[inode].get_open_count() == 1:
+                self.nodes[inode].lock()
         except Exception as e:
             self.log.error(e)
 
@@ -858,7 +876,7 @@ class _FileSystem(pyfuse3.Operations):
         *fh* has been released, no further `readdir` requests will be received
         for it (until it is opened again with `opendir`).
         '''
-        self.nodes[inode].dec_open_count()
+        self.__try_decrease_op_count(inode)
 
     @wrapper
     async def fsyncdir(self, inode, datasync):

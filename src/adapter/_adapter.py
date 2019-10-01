@@ -4,6 +4,8 @@ class Adapter():
         self.client = None
 
     def start(self):
+        if self.client is None:
+            raise NotImplementedError("Client is not set.")
         self.client.run()
 
     def create(self):

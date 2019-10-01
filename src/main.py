@@ -4,6 +4,7 @@ import concurrent.futures
 import os
 
 from filesystem.fs import FileSystemStarter
+from filesystem.standard_fs import StandardFileSystem
 import adapter.mqtt.mqtt_adapter as mqtt
 import utils
 
@@ -26,13 +27,13 @@ def main():
     options = parse_args()
     log = utils.init_logging(debug=options.debug, with_file=False)
     log.info("Starting application.")
-    # fs.start(options.mountpoint, options.debug, options.debug_fuse)
+    fs = StandardFileSystem(options.mountpoint, options.debug)
+
     try:
         if not os.path.isdir(options.mountpoint):
             os.mkdir(options.mountpoint)
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(FileSystemStarter(
-                options.mountpoint, options.debug, options.debug_fuse).start)
+            executor.submit(FileSystemStarter(fs).start)
             executor.submit(mqtt.MQTTAdapter(
                 options.mountpoint, options.debug).start)
 

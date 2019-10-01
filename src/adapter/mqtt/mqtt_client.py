@@ -9,8 +9,11 @@ from adapter._client import Client
 class MQTT(mqtt.Client, Client):
 
     def __init__(self, entry_point, debug):
-        super().__init__("Listener")
+        name = "Listener"
+        super().__init__(name)
         self.log = utils.init_logging(self.__class__.__name__, debug=debug)
+        self.log.info("Starting Client \"%s\" with name \"%s\"",
+                      self.__class__.__name__, name)
         self.entry = os.path.join(".", entry_point)
 
     def on_connect(self, client, userdata, flags, rc):
@@ -42,7 +45,6 @@ class MQTT(mqtt.Client, Client):
         self.log.debug("Using directory: %s", directory)
         self.log.debug("Abs path: %s", os.path.abspath(directory))
 
-        # This could be related to the IOCTL error
         os.makedirs(os.path.abspath(directory), exist_ok=True)
 
         payload = json.loads(payload)
@@ -56,10 +58,12 @@ class MQTT(mqtt.Client, Client):
             self.log.info("Key: %s, value: %s", key, value)
 
             try:
-                # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
+
                 file_path = os.path.join(os.path.abspath(directory), key)
                 self.log.debug("will open: %s", file_path)
 
+                # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
+                # with open is responsible for this.
                 if os.path.isfile(file_path):
                     '''
                     with open(file_path, 'w') as f:
@@ -69,13 +73,13 @@ class MQTT(mqtt.Client, Client):
                     '''
                 else:
                     self.log.debug("File doesn't exist. Creating file.")
-
-                    with open(file_path, 'x') as f:
-                        self.log.debug("Will write %s to %s", value, file_path)
-                        self.log.debug("writable: %s", f.writable())
-                        # size = f.write(value)
-                        # self.log.debug("Wrote %d characters", size)
-
+                    '''
+                    with open(file_path, 'w+') as f:
+                        # self.log.debug("Will write %s to %s", value, file_path)
+                        # self.log.debug("writable: %s", f.writable())
+                        size = f.write(value)
+                        self.log.debug("Wrote %d characters", size)
+                    '''
             except Exception as e:
                 self.log.error(e)
 

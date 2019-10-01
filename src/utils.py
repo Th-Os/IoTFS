@@ -9,7 +9,7 @@ def init_logging(name="root", debug=False, with_file=True):
     if with_file:
         if os.path.isdir("logs") is False:
             os.mkdir("logs")
-        fh = logging.FileHandler(os.path.join("logs", name + ".log"))
+        fh = logging.FileHandler(os.path.join("logs", name + ".log"), "w+")
     sh = logging.StreamHandler(stream=stdout)
 
     if with_file:

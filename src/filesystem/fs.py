@@ -14,42 +14,27 @@ from filesystem._fs import _FileSystem
 
 class FileSystem(_FileSystem):
 
-    def __init__(self, mount_point, debug):
+    def __init__(self, mount_point, debug=False):
         super().__init__(mount_point, debug)
-        self.observers = []
-
-    def register(self, connector):
-        self.observers.append(connector)
-
-    def notify(self, message):
-        for observer in self.observers:
-            observer.update(message)
-
-    def deregister(self, connector):
-        if connector in self.observers:
-            self.observers.remove(connector)
-
-    def __add_inode(self, name, parent_inode, node_type, data):
-        super().__add_inode(name, parent_inode, node_type, data)
-        self.notify("Added inode with name {}".format(name))
+        self.debug = debug
+        self.mount_point = mount_point
 
 
 class FileSystemStarter():
 
-    def __init__(self, mount_point, name="iotfs", debug=False, debug_fuse=False):
-        self.mount_point = mount_point
-        self.fs = FileSystem(mount_point, debug)
-        self.name = name
-        self.debug = debug
-        self.debug_fuse = debug_fuse
+    def __init__(self, fs):
+        self.log = utils.init_logging(self.__class__.__name__)
+        if not isinstance(fs, FileSystem):
+            self.log.error("Parameter is no Filesystem.")
+        self.fs = fs
 
     def start(self):
-        fuse_log = utils.init_logging("pyfuse3", self.debug_fuse)
+        fuse_log = utils.init_logging("pyfuse3", self.fs.debug)
         fuse_options = set(pyfuse3.default_options)
-        fuse_options.add('fsname=' + self.name)
-        if self.debug_fuse:
+        fuse_options.add('fsname=' + self.fs.__class__.__name__)
+        if self.fs.debug:
             fuse_options.add('debug')
-        pyfuse3.init(self.fs, self.mount_point, fuse_options)
+        pyfuse3.init(self.fs, self.fs.mount_point, fuse_options)
         try:
             trio.run(pyfuse3.main)
         except FUSEError:

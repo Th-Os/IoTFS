@@ -13,19 +13,22 @@ SWAP_TYPE = 2
 
 class Node():
 
-    def __init__(self, name, path, parent, file_type, attr, unlink, open_count):
+    def __init__(self, name, path, parent, file_type, attr, open_count):
         self.set_name(name)
         self.path = path
         self.parent = parent
         self.type = file_type
         self.attr = attr
-        self.unlink = unlink
 
         # Creating, opening, closing and removing a file, will result in open_count
         self.open_count = open_count
 
-        # If rm or rmdir -> node needs to exist but ls mustn't show the item
+        # Attribute that will skip node at readdir call.
         self.invisible = False
+
+        # TODO: Currently not implemented, because unlink and rmdir try to remove the node at the end.
+        # If unlink or rmdir -> node needs to exist but ls mustn't show the item
+        self.locked = False
 
     def set_name(self, name):
         if type(name) is str:
@@ -65,13 +68,11 @@ class Node():
     def has_attr(self):
         return self.attr is not None
 
-    def is_unlink(self):
-        if self.unlink is None:
-            return False
-        return self.unlink
+    def is_invisible(self):
+        return self.invisible
 
-    def set_unlink(self, unlink=True):
-        self.unlink = unlink
+    def set_invisible(self, invisible=True):
+        self.invisible = invisible
 
     def inc_open_count(self, amount=1):
         self.open_count += amount
@@ -82,11 +83,14 @@ class Node():
     def get_open_count(self):
         return self.open_count
 
-    def set_visible(self):
-        self.invisible = False
+    def unlock(self):
+        self.locked = False
 
-    def set_invisible(self):
-        self.invisible = True
+    def lock(self):
+        self.locked = True
+
+    def is_locked(self):
+        return self.locked
 
     def to_dict(self):
         return {
@@ -94,21 +98,21 @@ class Node():
             "path": self.path,
             "parent": self.parent,
             "type": self.type,
-            "unlink": self.unlink,
+            "invisible": self.invisible,
             "open_count": self.open_count,
-            "invisible": self.invisible
+            "lock": self.locked
         }
 
     def __repr__(self):
-        return "Node(name: {0}, path: {1}, type: {2}, unlink: {3}, open_count: {4}, invisible: {5})".format(
-            self.name, self.path, self.type, self.unlink, self.open_count, self.invisible)
+        return "Node(name: {0}, path: {1}, type: {2}, invisible: {3}, open_count: {4}, lock: {5})".format(
+            self.name, self.path, self.type, self.invisible, self.open_count, self.locked)
 
 
 class File(Node):
 
     def __init__(self, name, path, parent=0, data="", attr=None, unlink=False, open_count=0):
         super().__init__(name, path, parent, FILE_TYPE,
-                         attr=attr, unlink=unlink, open_count=open_count)
+                         attr=attr, open_count=open_count)
         self.set_data(data)
         if self.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
             self.set_type(SWAP_TYPE)
@@ -142,16 +146,16 @@ class File(Node):
             "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\
             "data: {0}, ".format(self.data) +\
-            "unlink: {0}, ".format(self.unlink) +\
             "open_count: {0}, ".format(self.open_count) +\
-            "invisible: {0}) ".format(self.invisible)
+            "invisible: {0}, ".format(self.invisible) +\
+            "lock: {0})".format(self.locked)
 
 
 class Directory(Node):
 
     def __init__(self, name, path, parent=0, attr=None, unlink=False, root=False, open_count=0):
         super().__init__(name, path, parent, DIR_TYPE,
-                         attr=attr, unlink=unlink, open_count=open_count)
+                         attr=attr, open_count=open_count)
         self.root = root
 
     def is_root(self):
@@ -174,9 +178,9 @@ class Directory(Node):
             "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\
             "root: {0}, ".format(self.root) +\
-            "unlink: {0}, ".format(self.unlink) +\
             "open_count: {0}, ".format(self.open_count) +\
-            "invisible: {0}, ".format(self.invisible)
+            "invisible: {0}, ".format(self.invisible) +\
+            "lock: {0})".format(self.locked)
 
 
 class EntryAttributes(pyfuse3.EntryAttributes):
