@@ -37,9 +37,8 @@ def test_msg():
     LOGGER.info("test_msg start")
     file_path = os.path.join(ROOT_DIR, "topic", "test", "msg")
     assert os.path.isfile(file_path)
-    '''
     with open(file_path) as f:
         out = f.read()
         assert out == "test"
-    '''
+        LOGGER.info("output: %s", out)
     LOGGER.info("test_msg end")
