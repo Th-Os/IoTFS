@@ -443,7 +443,7 @@ class _FileSystem(pyfuse3.Operations):
             raise pyfuse3.FUSEError(errno.EPERM)
         '''
         self.__try_increase_op_count(inode)
-        return inode
+        return pyfuse3.FileInfo(fh=inode)
 
     @wrapper
     async def read(self, inode, off, size):
