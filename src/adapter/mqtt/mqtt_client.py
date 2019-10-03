@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import os
+import stat
 import json
 
 import utils
@@ -65,6 +66,11 @@ class MQTT(mqtt.Client, Client):
                 # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
                 # with open is responsible for this.
                 if os.path.isfile(file_path):
+                    fd = os.open(file_path, os.O_WRONLY |
+                                 os.O_TRUNC, stat.S_IRWXO)
+                    assert os.path.exists(file_path) is True
+                    os.write(fd, value.encode("utf-8"))
+                    os.close(fd)
                     '''
                     with open(file_path, 'w') as f:
                         self.log.debug("Will write %s to %s", value, f)
@@ -73,6 +79,13 @@ class MQTT(mqtt.Client, Client):
                     '''
                 else:
                     self.log.debug("File doesn't exist. Creating file.")
+                    self.log.debug("With content: %s", value)
+                    fd = os.open(file_path, os.O_CREAT |
+                                 os.O_WRONLY, stat.S_IRWXO)
+                    assert os.path.exists(file_path) is True
+                    os.write(fd, value.encode("utf-8"))
+                    os.close(fd)
+                    self.log.debug("Wrote to file")
                     '''
                     with open(file_path, 'w+') as f:
                         # self.log.debug("Will write %s to %s", value, file_path)

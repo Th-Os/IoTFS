@@ -418,8 +418,20 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("open: %d", inode)
         self.log.info("----")
 
-        self.__try_increase_op_count(inode)
+        '''Open a inode *inode* with *flags*.
+        *ctx* will be a `RequestContext` instance.
+        *flags* will be a bitwise or of the open flags described in the
+        :manpage:`open(2)` manpage and defined in the `os` module (with the
+        exception of ``O_CREAT``, ``O_EXCL``, ``O_NOCTTY`` and ``O_TRUNC``)
+        This method must return a `FileInfo` instance. The `FileInfo.fh` field
+        must contain an integer file handle, which will be passed to the `read`,
+        `write`, `flush`, `fsync` and `release` methods to identify the open
+        file. The `FileInfo` instance may also have relevant configuration
+        attributes set; see the `FileInfo` documentation for more information.
+        '''
 
+        # TODO: Add permission handling to nodes.
+        '''
         assert flags & os.O_CREAT == 0
         if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
             self.log.error("False permission.")
@@ -429,6 +441,8 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("append: %d", flags & os.O_APPEND)
             self.log.debug("whole flags: %d", flags)
             raise pyfuse3.FUSEError(errno.EPERM)
+        '''
+        self.__try_increase_op_count(inode)
         return inode
 
     @wrapper
@@ -436,7 +450,16 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
         self.log.info("read: %d", inode)
         self.log.info("----")
-        self.log.info(self.nodes[inode].get_data()[off: off+size])
+
+        '''Read *size* bytes from *fh* at position *off*
+        *fh* will by an integer filehandle returned by a prior `open` or
+        `create` call.
+        This function should return exactly the number of bytes requested except
+        on EOF or error, otherwise the rest of the data will be substituted with
+        zeroes.
+        '''
+
+        self.log.debug(self.nodes[inode].get_data()[off: off+size])
         return self.nodes[inode].get_data()[off: off+size]
 
     # TODO: implement mode and flags
@@ -446,8 +469,6 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("create: %s", name)
         self.log.info("----")
 
-        if name.decode("utf-8")[-4:] == ".swp":
-            self.log.debug("Creating a swap file.")
         '''Create a file with permissions *mode* and open it with *flags*
         *ctx* will be a `RequestContext` instance.
         The method must return a tuple of the form *(fh, attr)*, where *fh* is a
@@ -457,6 +478,9 @@ class _FileSystem(pyfuse3.Operations):
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
         '''
+
+        if name.decode("utf-8")[-4:] == ".swp":
+            self.log.debug("Creating a swap file.")
         try:
             self.log.debug("Trying to get inode")
             inode = self.__add_inode(name, parent_inode)
@@ -552,6 +576,7 @@ class _FileSystem(pyfuse3.Operations):
         This method may return an error by raising `FUSEError`, but the error
         will be discarded because there is no corresponding client request.
         '''
+        self.nodes[inode].unlock()
         self.__try_decrease_op_count(inode)
 
     @wrapper
@@ -875,6 +900,7 @@ class _FileSystem(pyfuse3.Operations):
         *fh* has been released, no further `readdir` requests will be received
         for it (until it is opened again with `opendir`).
         '''
+        self.nodes[inode].unlock()
         self.__try_decrease_op_count(inode)
 
     @wrapper

@@ -35,24 +35,26 @@ jobs:
         uses: actions/checkout@master
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Check Directories # Only for testing purpose
+        run: cd ..; ls;
       - name: Lint with flake8
         run: |
           pip install flake8
           flake8 ./src --max-line-length 120
-      - name: Start application
+      - name: Start Application
         run: |
-          mkdir dir
           nohup python3 -u ./src/main.py dir --debug-fuse --debug &
           echo $! > app.pid
-      - name: Application status
+      - name: Application Status Before Test
         run: |
-          ps ax | grep python3
-          ls
           cat logs/*.log
       - name: Test with pytest
         run: |
           pip install pytest
           pytest
+      - name: Read Logs
+        run: |
+          cat logs/*.log
       - name: Stop Application
         run: |
           kill `cat app.pid` # kill resulting PID
