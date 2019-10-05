@@ -5,16 +5,16 @@ import json
 
 import utils
 from adapter._client import Client
+from adapter._adapter import Events
 
 
-class MQTT(mqtt.Client, Client):
+class MQTT_Client(mqtt.Client, Client):
 
     def __init__(self, entry_point, debug):
-        name = "Listener"
-        super().__init__(name)
-        self.log = utils.init_logging(self.__class__.__name__, debug=debug)
-        self.log.info("Starting Client \"%s\" with name \"%s\"",
-                      self.__class__.__name__, name)
+        mqtt.Client.__init__(self, "Listener")
+        Client.__init__(self, "Client.MQTT")
+        self.log.info("Starting Client \"%s\"",
+                      self.__class__.__name__)
         self.entry = os.path.join(".", entry_point)
 
     def on_connect(self, client, userdata, flags, rc):
@@ -50,51 +50,7 @@ class MQTT(mqtt.Client, Client):
 
         payload = json.loads(payload)
 
-        self.log.debug(
-            "going to open files (%d) and write in them.", len(payload.items()))
-
-        self.log.debug(payload)
-
-        for key, value in payload.items():
-            self.log.info("Key: %s, value: %s", key, value)
-
-            try:
-
-                file_path = os.path.join(os.path.abspath(directory), key)
-                self.log.debug("will open: %s", file_path)
-
-                # This results in IOCTL NOT IMPLEMENTED ERROR -> System freezes
-                # with open is responsible for this.
-                if os.path.isfile(file_path):
-                    fd = os.open(file_path, os.O_WRONLY |
-                                 os.O_TRUNC, stat.S_IRWXO)
-                    assert os.path.exists(file_path) is True
-                    os.write(fd, value.encode("utf-8"))
-                    os.close(fd)
-                    '''
-                    with open(file_path, 'w') as f:
-                        self.log.debug("Will write %s to %s", value, f)
-                        size = f.write(value)
-                        self.log.debug("Wrote %d characters", size)
-                    '''
-                else:
-                    self.log.debug("File doesn't exist. Creating file.")
-                    self.log.debug("With content: %s", value)
-                    fd = os.open(file_path, os.O_CREAT |
-                                 os.O_WRONLY, stat.S_IRWXO)
-                    assert os.path.exists(file_path) is True
-                    os.write(fd, value.encode("utf-8"))
-                    os.close(fd)
-                    self.log.debug("Wrote to file")
-                    '''
-                    with open(file_path, 'w+') as f:
-                        # self.log.debug("Will write %s to %s", value, file_path)
-                        # self.log.debug("writable: %s", f.writable())
-                        size = f.write(value)
-                        self.log.debug("Wrote %d characters", size)
-                    '''
-            except Exception as e:
-                self.log.error(e)
+        self.notify(Events.CREATE, msg.topic, payload)
 
     def run(self):
         self.connect("localhost", 1883, 60)

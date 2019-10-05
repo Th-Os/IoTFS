@@ -36,6 +36,8 @@ def test_topic():
 def test_msg():
     LOGGER.info("test_msg start")
     file_path = os.path.join(ROOT_DIR, "topic", "test", "msg")
+    LOGGER.info("path: %s", file_path)
+    # TODO: Sometimes failing. But don't know why.
     assert os.path.isfile(file_path)
     with open(file_path) as f:
         out = f.read()
