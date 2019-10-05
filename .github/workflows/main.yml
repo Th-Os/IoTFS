@@ -3,6 +3,7 @@ name: IoTFS
 on:
   push:
     branches:
+      - master
       - dev
       - test_actions
 

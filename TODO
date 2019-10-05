@@ -1,0 +1,8 @@
+- Implementing Adapter
+    - using callback or async to get result
+    - add errors
+    - write tests for queries.py
+        - for this a fs adapter will be needed
+- Implementing Connector
+- Drawing hourglass model for iotfs
+- Package IoTFS and devide main code and add-ons (adapter/mqtt, adapter/fs)

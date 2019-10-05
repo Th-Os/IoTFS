@@ -12,26 +12,26 @@ class Types():
 class Query():
 
     # TODO: Query should be extended with permissions
-    def __init__(self, node_type, name, path, callback):
+    def __init__(self, node_type, name, path):
         assert "MOUNT_POINT" in os.environ
         mount_point = os.environ["MOUNT_POINT"]
 
         self.type = node_type
         self.name = name
         self.path = os.path.join(mount_point, path)
-        self.callback = callback
 
-    def start(self):
-        pass
+    def start(self, callback):
+        self.callback = callback
 
 
 class CreateQuery(Query):
 
-    def __init__(self, node_type, name, path, data=None, callback=None):
-        super().__init__(node_type, name, path, callback)
+    def __init__(self, node_type, name, path, data=None):
+        super().__init__(node_type, name, path)
         self.data = data
 
-    def start(self):
+    def start(self, callback=None):
+        super().start(callback)
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.FILE:
             fd = os.open(full_path, os.O_CREAT | os.O_WRONLY, stat.S_IRWXO)
@@ -44,7 +44,7 @@ class CreateQuery(Query):
         elif self.type == Types.DIRECTORIES:
             os.makedirs(full_path, exist_ok=True)
         else:
-            pass  # TODO: Do something ... Maybe errors?
+            raise NotImplementedError(self.type)
         if self.callback is not None:
             self.callback()
 
@@ -52,21 +52,36 @@ class CreateQuery(Query):
 class ReadQuery(Query):
 
     # reading file and reading directory (results in list)
-    def __init__(self, node_type, name, path, callback=None):
-        super().__init__(node_type, name, path, callback)
+    def __init__(self, node_type, name, path):
+        super().__init__(node_type, name, path)
+
+    def start(self, callback=None):
+        super().start(callback)
+        result = None
+        full_path = os.path.join(self.path, self.name)
+        if self.type == Types.DIRECTORY:
+            result = os.listdir(full_path)
+        elif self.type == Types.FILE:
+            with open(full_path, "r") as f:
+                result = f.read()
+        else:
+            raise NotImplementedError(self.type)
+        if self.callback is not None:
+            self.callback(result)
 
 
 class UpdateQuery(Query):
 
-    def __init__(self, node_type, name, path, new_name=None, new_path=None, new_data=None, callback=None):
-        super().__init__(node_type, name, path, callback)
+    def __init__(self, node_type, name, path, new_name=None, new_path=None, new_data=None):
+        super().__init__(node_type, name, path)
 
         # TODO: check if and what changes
         self.new_name = new_name
         self.new_path = new_path
         self.new_data = new_data
 
-    def start(self):
+    def start(self, callback=None):
+        super().start(callback)
         full_path = os.path.join(self.path, self.name)
 
         if self.new_name is not None:
@@ -85,5 +100,20 @@ class UpdateQuery(Query):
 
 class DeleteQuery(Query):
 
-    def __init__(self, node_type, name, path, callback=None):
-        super().__init__(node_type, name, path, callback)
+    def __init__(self, node_type, name, path):
+        super().__init__(node_type, name, path)
+
+    def start(self, callback=None):
+        super().start(callback)
+        full_path = os.path.join(self.path, self.name)
+        if self.type == Types.DIRECTORY:
+            os.rmdir(full_path)
+        elif self.type == Types.DIRECTORIES:
+            # TODO: Test if this works
+            os.removedirs(full_path)
+        elif self.type == Types.FILE:
+            os.remove(full_path)
+        else:
+            raise NotImplementedError(self.type)
+        if self.callback is not None:
+            self.callback()
