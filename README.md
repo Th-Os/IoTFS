@@ -1,3 +1,5 @@
+![](https://github.com/th-os/iotfs/workflows/IoTFS/badge.svg)
+
 # IoT Filesystem
 
 This System will open possibilities for including network data (e.g. sensor data) to your filesystem.
@@ -6,9 +8,9 @@ This System will open possibilities for including network data (e.g. sensor data
 
 - Linux with Fuse3
 - Python >3.5
-- specific libraries (pyfuse3, ...)
+- specific libraries defined in requirements.txt
 
 ## What will be done
 
-- Init work
-- Implement first prototype with pyfuse3
+- Implementing Adapter (Bottom -> Up)
+- Implementing Connector (Up -> Bottom)
