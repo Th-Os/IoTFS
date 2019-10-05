@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Thomas Oswald",
     author_email="thomas.oswald@student.ur.de",
-    description="A IOTFS",
+    description="A Filesystem for IoT and other systems.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/th-os/iotfs",

@@ -1,4 +1,3 @@
-from adapter._adapter import Events
 import utils
 
 

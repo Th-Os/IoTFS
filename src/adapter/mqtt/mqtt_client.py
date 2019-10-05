@@ -1,9 +1,7 @@
 import paho.mqtt.client as mqtt
 import os
-import stat
 import json
 
-import utils
 from adapter._client import Client
 from adapter._adapter import Events
 

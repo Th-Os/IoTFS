@@ -1,8 +1,7 @@
 import os
-import stat
 
 from adapter._adapter import Adapter
-from adapter.queries import CreateQuery, ReadQuery, UpdateQuery, DeleteQuery, Types
+from adapter.queries import CreateQuery, UpdateQuery, Types
 import utils
 
 
