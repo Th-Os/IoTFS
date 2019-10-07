@@ -28,6 +28,7 @@ def main():
     log = utils.init_logging(debug=options.debug, with_file=False)
     log.info("Starting application.")
     os.environ["MOUNT_POINT"] = os.path.abspath(options.mountpoint)
+
     fs = StandardFileSystem(options.mountpoint, options.debug)
     mqtt = MQTT_Client(options.mountpoint, options.debug)
 

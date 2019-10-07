@@ -3,7 +3,7 @@ import utils
 
 class Client():
 
-    def __init__(self, name="Client"):
+    def __init__(self, name="client"):
         self.name = name
         self.log = utils.init_logging(name, True)
         self.log.info("Init %s", name)

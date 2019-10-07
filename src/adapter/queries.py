@@ -1,6 +1,8 @@
 import os
 import stat
 
+import utils
+
 
 class Types():
 
@@ -11,9 +13,12 @@ class Types():
 
 class Query():
 
+    # TODO: Query should allow queueing
     # TODO: Query should be extended with permissions
     def __init__(self, node_type, name, path):
-        assert "MOUNT_POINT" in os.environ
+        self.log = utils.init_logging("Query", True)
+        if "MOUNT_POINT" not in os.environ:
+            raise LookupError("No \"MOUNT_POINT\" in environment variables.")
         mount_point = os.environ["MOUNT_POINT"]
 
         self.type = node_type
@@ -28,20 +33,25 @@ class CreateQuery(Query):
 
     def __init__(self, node_type, name, path, data=None):
         super().__init__(node_type, name, path)
+        self.log = utils.init_logging(self.__class__.__name__, True)
         self.data = data
 
     def start(self, callback=None):
+        self.log.debug("Starting")
         super().start(callback)
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.FILE:
+            self.log.debug("Create file with path: %s", full_path)
             fd = os.open(full_path, os.O_CREAT | os.O_WRONLY, stat.S_IRWXO)
             assert os.path.exists(full_path) is True
             if self.data is not None:
                 os.write(fd, self.data.encode("utf-8"))
             os.close(fd)
         elif self.type == Types.DIRECTORY:
+            self.log.debug("Create dir with path: %s", full_path)
             os.mkdir(full_path)
         elif self.type == Types.DIRECTORIES:
+            self.log.debug("Create dirs with path: %s", full_path)
             os.makedirs(full_path, exist_ok=True)
         else:
             raise NotImplementedError(self.type)
