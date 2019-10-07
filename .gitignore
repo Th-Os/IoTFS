@@ -112,3 +112,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Push
+.push.settings.jsonc
+
+# vscode
+.vscode
