@@ -1,24 +1,22 @@
 import os
 import pyfuse3
 
-BYTE_ENCODING = 0
+BYTE_ENCODING = 0  # Filesystem Encoding
 UTF_8_ENCODING = 1
 
 FILE_TYPE = 0
 DIR_TYPE = 1
 SWAP_TYPE = 2
 
-# TODO: could use fsdecode and fsencode rather than actual utf-8 and byte encoding / decoding
-
 
 class Node():
 
     def __init__(self, name, path, parent, file_type, attr, open_count):
         self.set_name(name)
-        self.path = path
+        self.set_path(path)
         self.parent = parent
-        self.type = file_type
-        self.attr = attr
+        self.set_type(file_type)
+        self.set_attr(attr)
 
         # Creating, opening, closing and removing a file, will result in open_count
         self.open_count = open_count
@@ -26,20 +24,17 @@ class Node():
         # Attribute that will skip node at readdir call.
         self.invisible = False
 
-        # TODO: Currently not implemented, because unlink and rmdir try to remove the node at the end.
         # If unlink or rmdir -> node needs to exist but ls mustn't show the item
         self.locked = False
 
     def set_name(self, name):
-        if type(name) is str:
-            name = name.encode("utf-8")
-        self.name = name
+        self.name = os.fsencode(name)
 
     def get_name(self, encoding=BYTE_ENCODING):
         if encoding == BYTE_ENCODING:
             return self.name
         else:
-            return self.name.decode("utf-8")
+            return os.fsdecode(self.name)
 
     def set_path(self, path):
         self.path = path
@@ -120,15 +115,13 @@ class File(Node):
     def set_data(self, data):
         if data is None:
             data = ""
-        if type(data) is str:
-            data = data.encode("utf-8")
-        self.data = data
+        self.data = os.fsencode(data)
 
     def get_data(self, encoding=BYTE_ENCODING):
         if encoding == BYTE_ENCODING:
             return self.data
         else:
-            return self.data.decode("utf-8")
+            return os.fsdecode(self.data)
 
     def get_data_size(self, encoding=UTF_8_ENCODING):
         return len(self.get_data(encoding=encoding))
