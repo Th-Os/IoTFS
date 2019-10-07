@@ -11,12 +11,15 @@ SWAP_TYPE = 2
 
 class Node():
 
-    def __init__(self, name, path, parent, file_type, attr, open_count):
+    def __init__(self, name, path, mode, parent, file_type, attr, open_count):
         self.set_name(name)
         self.set_path(path)
         self.parent = parent
         self.set_type(file_type)
         self.set_attr(attr)
+
+        # TODO: Add mode
+        self.mode = mode
 
         # Creating, opening, closing and removing a file, will result in open_count
         self.open_count = open_count
@@ -44,6 +47,12 @@ class Node():
 
     def get_full_path(self):
         return self.path + self.get_name(encoding=UTF_8_ENCODING)
+
+    def get_mode(self):
+        return self.mode
+
+    def set_parent(self, new_parent):
+        self.parent = new_parent
 
     def get_parent(self):
         return self.parent
@@ -91,6 +100,7 @@ class Node():
         return {
             "name": self.name,
             "path": self.path,
+            "mode": self.mode,
             "parent": self.parent,
             "type": self.type,
             "invisible": self.invisible,
@@ -99,14 +109,14 @@ class Node():
         }
 
     def __repr__(self):
-        return "Node(name: {0}, path: {1}, type: {2}, invisible: {3}, open_count: {4}, lock: {5})".format(
-            self.name, self.path, self.type, self.invisible, self.open_count, self.locked)
+        return "Node(name: {0}, path: {1}, type: {2}, mode: {3}, invisible: {4}, open_count: {5}, lock: {6})".format(
+            self.name, self.path, self.type, self.mode, self.invisible, self.open_count, self.locked)
 
 
 class File(Node):
 
-    def __init__(self, name, path, parent=0, data="", attr=None, unlink=False, open_count=0):
-        super().__init__(name, path, parent, FILE_TYPE,
+    def __init__(self, name, path, mode=7777, parent=0, data="", attr=None, unlink=False, open_count=0):
+        super().__init__(name, path, mode, parent, FILE_TYPE,
                          attr=attr, open_count=open_count)
         self.set_data(data)
         if self.get_name(encoding=UTF_8_ENCODING).endswith(".swp"):
@@ -135,6 +145,7 @@ class File(Node):
     def __repr__(self):
         return "File(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
+            "mode: {0}, ".format(self.mode) +\
             "parent: {0}, ".format(self.parent) +\
             "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\
@@ -146,8 +157,8 @@ class File(Node):
 
 class Directory(Node):
 
-    def __init__(self, name, path, parent=0, attr=None, unlink=False, root=False, open_count=0):
-        super().__init__(name, path, parent, DIR_TYPE,
+    def __init__(self, name, path, mode=7777, parent=0, attr=None, unlink=False, root=False, open_count=0):
+        super().__init__(name, path, mode, parent, DIR_TYPE,
                          attr=attr, open_count=open_count)
         self.root = root
 
@@ -167,6 +178,7 @@ class Directory(Node):
     def __repr__(self):
         return "Directory(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
+            "mode: {0}, ".format(self.mode) +\
             "parent: {0}, ".format(self.parent) +\
             "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type) +\

@@ -50,12 +50,13 @@ class _FileSystem(pyfuse3.Operations):
             "root", os.path.abspath(mount_point), root=True)
 
         self.log.debug("Size of nodes: %d", len(self.nodes))
-        # reimplement this into node.py
+
+        # TODO: Think about reimplementing this into node.py
         self._fd_inode_map = dict()
         self._inode_fd_map = dict()
         self._fd_open_count = dict()
 
-    def __add_inode(self, name, parent_inode, node_type=FILE_TYPE, data=""):
+    def __add_inode(self, name, parent_inode, node_type=FILE_TYPE, data="", mode=7777):
         path = self.nodes[parent_inode].get_full_path()
         self.log.info('__add_inode with path %s and name %s', path, name)
         if path[-1] != os.path.sep:
@@ -69,9 +70,11 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug(
                 "Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == FILE_TYPE or node_type == SWAP_TYPE:
-                self.nodes[inode] = File(name, path, parent_inode, data)
+                self.nodes[inode] = File(
+                    name, path, parent_inode, data, mode=mode)
             else:
-                self.nodes[inode] = Directory(name, path, parent_inode)
+                self.nodes[inode] = Directory(
+                    name, path, parent_inode, mode=mode)
             self.nodes[inode].inc_open_count()
             self.log.debug(self.nodes)
         return inode
@@ -135,9 +138,11 @@ class _FileSystem(pyfuse3.Operations):
         except Exception as e:
             self.log.error(e.msg)
 
-    def __get_node_by_name(self, name):
+    def __get_node_by_name(self, name, array=None):
+        if array is None:
+            array = self.nodes
         self.log.info("get node by name: %s", name)
-        for idx in self.nodes:
+        for idx in array:
             self.log.debug(idx)
             self.log.debug("check %s vs %s", self.nodes[idx].get_name(
                 encoding=UTF_8_ENCODING), name)
@@ -465,7 +470,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("Creating a swap file.")
         try:
             self.log.debug("Trying to get inode")
-            inode = self.__add_inode(name, parent_inode)
+            inode = self.__add_inode(name, parent_inode, mode=mode)
             self.log.debug("Got inode %d", inode)
             attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
@@ -473,19 +478,6 @@ class _FileSystem(pyfuse3.Operations):
         except Exception as e:
             self.log.error(e)
             self.log.error("Create Failed")
-        """
-        path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
-        try:
-            fd = os.open(path, flags | os.O_CREAT | os.O_TRUNC)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        attr = self.__getattr(fd=fd)
-        self._add_path(attr.st_ino, path)
-        self._inode_fd_map[attr.st_ino] = fd
-        self._fd_inode_map[fd] = attr.st_ino
-        self._fd_open_count[fd] = 1
-        return (fd, attr)
-        """
 
         return (inode, attr)
 
@@ -537,9 +529,9 @@ class _FileSystem(pyfuse3.Operations):
 
         self.log.info("----")
         self.log.info("access: %i", inode)
-        self.log.debug("access: %s", mode)
         self.log.info("----")
 
+        self.log.debug("access: %s", mode)
         # raise FUSEError(errno.ENOSYS)
 
     @wrapper
@@ -710,7 +702,14 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("rename: %s to %s", name_old, name_new)
         self.log.info("----")
 
-        # raise FUSEError(errno.ENOSYS)
+        # See https://github.com/libfuse/pyfuse3/blob/1730558574361bf7b05b1be2a228a0443deca088/examples/tmpfs.py#L224
+        if flags != 0:
+            raise FUSEError(errno.EINVAL)
+
+        entry_old = await self.lookup(parent_inode_old, name_old)
+
+        self.nodes[entry_old.st_ino].set_parent(parent_inode_new)
+        self.nodes[entry_old.st_ino].set_name(name_new)
 
     @wrapper
     async def link(self, inode, new_parent_inode, new_name, ctx):
@@ -757,8 +756,10 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("mknod: %s", name)
         self.log.info("----")
 
-        # TODO: implement mode and rdev behavior
-        inode = self.__add_inode(name, parent_inode)
+        self.log.debug("With mode: %s", mode)
+
+        # TODO: implement mode behavior
+        inode = self.__add_inode(name, parent_inode, mode=mode)
         return self.__getattr(inode)
 
     @wrapper
@@ -768,18 +769,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
 
         return self.__getattr(self.__add_inode(name, parent_inode,
-                                               node_type=DIR_TYPE))
-        """
-        path = os.path.join(self._inode_to_path(inode_p), fsdecode(name))
-        try:
-            os.mkdir(path, mode=(mode & ~ctx.umask))
-            os.chown(path, ctx.uid, ctx.gid)
-        except OSError as exc:
-            raise FUSEError(exc.errno)
-        attr = self.__getattr(path=path)
-        self._add_path(attr.st_ino, path)
-        return attr
-        """
+                                               node_type=DIR_TYPE, mode=mode))
 
     @wrapper
     async def opendir(self, inode, ctx):
@@ -804,29 +794,24 @@ class _FileSystem(pyfuse3.Operations):
                 node = self.nodes[key]
                 self.log.debug("Key: %s, Value_name: %s", key, node.get_name())
 
-                # This could be problematic: < -> results in loop, <= results in false ls
+                # TODO: This could be problematic: < -> results in loop, <= results in false ls
                 if key <= start_id:
                     continue
 
-                self.log.debug("before swp check")
-                # TODO: Right now: omitting swap files.
+                # Omitting swap files.
                 if node.get_type() == SWAP_TYPE:
                     self.log.debug("swp: %s", node.get_name())
                     continue
-                self.log.debug("before unlink check")
                 if node.is_invisible() is True:
                     self.log.debug("Node %s is invisible.", node.get_name())
                     continue
-                self.log.debug("before readdir of %s", node.get_name())
                 if not pyfuse3.readdir_reply(token, node.get_name(), await self.getattr(key), key):
                     break
-            self.log.debug("after readdir")
         except Exception as e:
             self.log.error("Readdir failed.")
             self.log.error(e)
         return
 
-    # TODO: Fix rmdir ... not working correctly
     @wrapper
     async def rmdir(self, parent_inode, name, ctx):
         self.log.info("----")
@@ -904,27 +889,33 @@ class _FileSystem(pyfuse3.Operations):
         *ctx* will be a `RequestContext` instance.
         The method must return an appropriately filled `StatvfsData` instance.
 
-        Exampe of tmpfs:
-        stat_.f_bsize = 512
-        stat_.f_frsize = 512
-
-        size = self.get_row('SELECT SUM(size) FROM inodes')[0]
-        stat_.f_blocks = size // stat_.f_frsize
-        stat_.f_bfree = max(size // stat_.f_frsize, 1024)
-        stat_.f_bavail = stat_.f_bfree
-
-        inodes = self.get_row('SELECT COUNT(id) FROM inodes')[0]
-        stat_.f_files = inodes
-        stat_.f_ffree = max(inodes , 100)
-        stat_.f_favail = stat_.f_ffree
+        See https://linux.die.net/man/2/statvfs
+        and https://github.com/libfuse/pyfuse3/blob/1730558574361bf7b05b1be2a228a0443deca088/examples/tmpfs.py#L323
         '''
 
         self.log.info("----")
         self.log.info("statfs")
         self.log.info("----")
 
-        # TODO: Implement propagation of stats
         stats = pyfuse3.StatvfsData()
+        stats.f_bsize = 512
+        stats.f_frsize = 512
+
+        size_sum = 0
+        for inodes in self.nodes:
+            size_sum += self.nodes[inodes].get_attr().st_size
+
+        stats.f_blocks = size_sum // stats.f_frsize
+        stats.f_bfree = max(size_sum // stats.f_frsize, 1024)
+        stats.f_bavail = stats.f_bfree
+
+        count = len(self.nodes)
+        stats.f_files = count
+
+        # TODO: Think about max size of filesystem
+        stats.f_ffree = max(count, 200)
+        stats.favail = stats.f_ffree
+
         return stats
 
     def stacktrace(self):

@@ -93,7 +93,7 @@ class ReadQuery(Query):
                 result = f.read()
         else:
             raise NotImplementedError(self.type)
-        self.run_callback()
+        self.run_callback(result)
 
 
 class UpdateQuery(Query):

@@ -9,6 +9,7 @@ import utils
 from filesystem._fs import _FileSystem
 
 # Think about: Observer Pattern with signals and not over this. This could result in problems between threads and trio
+# This could result in events for the connector.listener
 
 
 class FileSystem(_FileSystem):

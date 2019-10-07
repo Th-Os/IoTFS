@@ -4,8 +4,31 @@
     - write tests for queries.py
         - for this a fs adapter will be needed
 - Implementing Connector
+    - implement listener (inotify or directly in fs.py code?)
+    - implement reader (simple read api)
 - Drawing hourglass model for iotfs
 - Package IoTFS and devide main code and add-ons (adapter/mqtt, adapter/fs)
+- FS functions to implement (ordered by importance from bottom to top):
+    - removexattr
+    - listxattr
+    - setxattr
+    - getxattr
+    - fsyncdir
+    - fsync
+    - flush
+    - readlink
+    - link
+    - symlink
+    - access
+    - mknod
+    - Whole permission / mode handling
+
+- FS test functions:
+    - mode (create, read, write, access) methods: create, mknode, mkdir, access
+    - rename
+    - link
+    - flush
+
 
 
 Errors:
