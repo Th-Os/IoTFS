@@ -135,24 +135,6 @@ class _FileSystem(pyfuse3.Operations):
         except Exception as e:
             self.log.error(e.msg)
 
-    # Needs some refactoring... Is this even needed?
-    def __get_path_inode(self, inode):
-        self.log.debug("Get Path by Inode: %d", inode)
-        self.log.debug("Is inode in files? %s", (inode in self.nodes))
-        if inode == pyfuse3.ROOT_INODE:
-            return "."
-        if inode not in self.nodes:
-            # This could be an error.
-            return self.__get_path_inode(pyfuse3.ROOT_INODE)
-        try:
-            path = self.nodes[inode].get_full_path() + os.path.sep
-        except Exception as e:
-            self.log.error(e)
-            raise Exception(
-                "Failed to combine path and node of inode %d" % inode)
-        self.log.debug("Result path: %s", path)
-        return path
-
     def __get_node_by_name(self, name):
         self.log.info("get node by name: %s", name)
         for idx in self.nodes:
@@ -371,8 +353,6 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
         self.log.debug("current nodes")
         self.log.debug(self.nodes)
-        # TODO: parent_inode save in dict and evaluate here
-        self.log.info("Parent Inode: %i", parent_inode)
         name = name.decode("utf-8")
         self.log.debug("Name: %s", name)
         self.log.debug("Trying to find existing inode")
@@ -394,6 +374,8 @@ class _FileSystem(pyfuse3.Operations):
             # Name of source file: .x.swp -> x
             src_name = name[1:-4]
             node = self.__get_node_by_name(src_name)
+
+            # Case: Swap File is created before real file.
             if node is None:
                 self.log.debug(
                     "Found no corresponing file to swap %s with name %s", name, src_name)
