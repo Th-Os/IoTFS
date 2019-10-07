@@ -37,7 +37,6 @@ class CreateQuery(Query):
         self.data = data
 
     def start(self, callback=None):
-        self.log.debug("Starting")
         super().start(callback)
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.FILE:
