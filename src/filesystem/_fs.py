@@ -71,10 +71,10 @@ class _FileSystem(pyfuse3.Operations):
                 "Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == FILE_TYPE or node_type == SWAP_TYPE:
                 self.nodes[inode] = File(
-                    name, path, parent_inode, data, mode=mode)
+                    name, path, mode=mode, parent=parent_inode, data=data)
             else:
                 self.nodes[inode] = Directory(
-                    name, path, parent_inode, mode=mode)
+                    name, path, mode=mode, parent=parent_inode)
             self.nodes[inode].inc_open_count()
             self.log.debug(self.nodes)
         return inode
