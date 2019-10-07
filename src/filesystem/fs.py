@@ -8,7 +8,7 @@ import trio
 import utils
 from filesystem._fs import _FileSystem
 
-# Observer Pattern with signals and not over this. This could result in problems between threads and trio
+# Think about: Observer Pattern with signals and not over this. This could result in problems between threads and trio
 
 
 class FileSystem(_FileSystem):

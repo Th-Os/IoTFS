@@ -15,7 +15,7 @@ class Query():
 
     # TODO: Query should allow queueing
     # TODO: Query should be extended with permissions
-    def __init__(self, node_type, name, path):
+    def __init__(self, node_type, name, path, callback):
         self.log = utils.init_logging("Query", True)
         if "MOUNT_POINT" not in os.environ:
             raise LookupError("No \"MOUNT_POINT\" in environment variables.")
@@ -24,20 +24,39 @@ class Query():
         self.type = node_type
         self.name = name
         self.path = os.path.join(mount_point, path)
-
-    def start(self, callback):
         self.callback = callback
+
+    def start(self):
+        pass
+
+    def run_callback(self, *args):
+        if self.callback is not None:
+            self.callback(*args)
+
+
+class QueryQueue():
+
+    def __init__(self):
+        self.queue = []
+
+    def add(self, item):
+        assert isinstance(item, Query)
+        self.queue.append(item)
+
+    def startAll(self):
+        for item in self.queue:
+            item.start()
 
 
 class CreateQuery(Query):
 
-    def __init__(self, node_type, name, path, data=None):
-        super().__init__(node_type, name, path)
+    def __init__(self, node_type, name, path, data=None, callback=None):
+        super().__init__(node_type, name, path, callback)
         self.log = utils.init_logging(self.__class__.__name__, True)
         self.data = data
 
-    def start(self, callback=None):
-        super().start(callback)
+    def start(self):
+        super().start()
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.FILE:
             self.log.debug("Create file with path: %s", full_path)
@@ -54,18 +73,17 @@ class CreateQuery(Query):
             os.makedirs(full_path, exist_ok=True)
         else:
             raise NotImplementedError(self.type)
-        if self.callback is not None:
-            self.callback()
+        self.run_callback()
 
 
 class ReadQuery(Query):
 
     # reading file and reading directory (results in list)
-    def __init__(self, node_type, name, path):
-        super().__init__(node_type, name, path)
+    def __init__(self, node_type, name, path, callback=None):
+        super().__init__(node_type, name, path, callback)
 
-    def start(self, callback=None):
-        super().start(callback)
+    def start(self):
+        super().start()
         result = None
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.DIRECTORY:
@@ -75,45 +93,43 @@ class ReadQuery(Query):
                 result = f.read()
         else:
             raise NotImplementedError(self.type)
-        if self.callback is not None:
-            self.callback(result)
+        self.run_callback()
 
 
 class UpdateQuery(Query):
 
-    def __init__(self, node_type, name, path, new_name=None, new_path=None, new_data=None):
-        super().__init__(node_type, name, path)
+    def __init__(self, node_type, name, path, new_name=None, new_path=None, new_data=None, callback=None):
+        super().__init__(node_type, name, path, callback)
 
         # TODO: check if and what changes
         self.new_name = new_name
         self.new_path = new_path
         self.new_data = new_data
 
-    def start(self, callback=None):
-        super().start(callback)
+    def start(self):
+        super().start()
         full_path = os.path.join(self.path, self.name)
 
+        # TODO: Test this bevavior
         if self.new_name is not None:
-            pass
+            os.rename(full_path, os.path.join(self.path, self.new_name))
         elif self.new_path is not None:
-            pass
+            os.rename(full_path, os.path.join(self.new_path, self.name))
         elif self.new_data is not None:
             fd = os.open(full_path, os.O_WRONLY |
                          os.O_TRUNC, stat.S_IRWXO)
-            assert os.path.exists(full_path) is True
             os.write(fd, self.new_data.encode("utf-8"))
             os.close(fd)
-        if self.callback is not None:
-            self.callback()
+        self.run_callback()
 
 
 class DeleteQuery(Query):
 
-    def __init__(self, node_type, name, path):
-        super().__init__(node_type, name, path)
+    def __init__(self, node_type, name, path, callback=None):
+        super().__init__(node_type, name, path, callback)
 
-    def start(self, callback=None):
-        super().start(callback)
+    def start(self):
+        super().start()
         full_path = os.path.join(self.path, self.name)
         if self.type == Types.DIRECTORY:
             os.rmdir(full_path)
@@ -124,5 +140,4 @@ class DeleteQuery(Query):
             os.remove(full_path)
         else:
             raise NotImplementedError(self.type)
-        if self.callback is not None:
-            self.callback()
+        self.run_callback()
