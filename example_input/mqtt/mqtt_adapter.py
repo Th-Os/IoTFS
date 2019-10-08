@@ -1,15 +1,13 @@
 import os
 
-from adapter._adapter import Adapter
-from adapter.queries import CreateQuery, UpdateQuery, Types
-import utils
+from corefs.adapter._adapter import Adapter
+from corefs.adapter.queries import CreateQuery, UpdateQuery, Types
 
 
 class MQTT_Adapter(Adapter):
 
     def __init__(self, client):
         super().__init__(client)
-        self.log = utils.init_logging("adapter.mqtt", debug=True)
 
     def create(self, topic, msg):
         topics = topic.split("/")

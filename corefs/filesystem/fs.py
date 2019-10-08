@@ -5,8 +5,9 @@ import pyfuse3
 from pyfuse3 import FUSEError
 import trio
 
-import utils
 from filesystem._fs import _FileSystem
+
+from utils import _logging
 
 # Think about: Observer Pattern with signals and not over this. This could result in problems between threads and trio
 # This could result in events for the connector.listener
@@ -23,13 +24,13 @@ class FileSystem(_FileSystem):
 class FileSystemStarter():
 
     def __init__(self, fs):
-        self.log = utils.init_logging(self.__class__.__name__)
+        self.log = _logging.create_logger(self.__class__.__name__)
         if not isinstance(fs, FileSystem):
             self.log.error("Parameter is no Filesystem.")
         self.fs = fs
 
     def start(self):
-        fuse_log = utils.init_logging("pyfuse3", self.fs.debug)
+        fuse_log = _logging.create_logger("pyfuse3", self.fs.debug)
         fuse_options = set(pyfuse3.default_options)
         fuse_options.add('fsname=' + self.fs.__class__.__name__)
         if self.fs.debug:

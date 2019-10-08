@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import utils
 import pyfuse3
 import errno
 import stat
@@ -19,6 +18,8 @@ else:
 
 from filesystem.node import File, Directory, EntryAttributes
 from filesystem.node import DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
+
+from utils import _logging
 
 
 def wrapper(func):
@@ -43,7 +44,7 @@ class _FileSystem(pyfuse3.Operations):
 
         # fuse debug starts with 2 for operations
         self.unique = 2
-        self.log = utils.init_logging(self.__class__.__name__, debug)
+        self.log = _logging.create_logger(self.__class__.__name__, debug)
         self.log.info("Init %s", self.__class__.__name__)
         self.nodes = dict()
         self.nodes[pyfuse3.ROOT_INODE] = Directory(

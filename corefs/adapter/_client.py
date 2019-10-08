@@ -1,11 +1,11 @@
-import utils
+from utils import _logging
 
 
 class Client():
 
     def __init__(self, name="client"):
         self.name = name
-        self.log = utils.init_logging(name, True)
+        self.log = _logging.create_logger(name, True)
         self.log.info("Init %s", name)
         self.observers = dict()
 

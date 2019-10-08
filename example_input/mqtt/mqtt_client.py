@@ -2,8 +2,8 @@ import paho.mqtt.client as mqtt
 import os
 import json
 
-from adapter._client import Client
-from adapter._adapter import Events
+from corefs.adapter._client import Client
+from corefs.adapter._adapter import Events
 
 
 class MQTT_Client(mqtt.Client, Client):

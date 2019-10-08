@@ -1,7 +1,7 @@
 import os
 import stat
 
-import utils
+from utils import _logging
 
 
 class Types():
@@ -16,7 +16,7 @@ class Query():
     # TODO: Query should allow queueing
     # TODO: Query should be extended with permissions
     def __init__(self, node_type, name, path, callback):
-        self.log = utils.init_logging("Query", True)
+        self.log = _logging.create_logger("Query", True)
         if "MOUNT_POINT" not in os.environ:
             raise LookupError("No \"MOUNT_POINT\" in environment variables.")
         mount_point = os.environ["MOUNT_POINT"]
@@ -52,7 +52,7 @@ class CreateQuery(Query):
 
     def __init__(self, node_type, name, path, data=None, callback=None):
         super().__init__(node_type, name, path, callback)
-        self.log = utils.init_logging(self.__class__.__name__, True)
+        self.log = _logging.create_logger(self.__class__.__name__, True)
         self.data = data
 
     def start(self):
