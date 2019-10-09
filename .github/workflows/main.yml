@@ -78,7 +78,7 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          pip3 install --ignore-installed core_fs_th_os-0.0.1-py3-none-any.whl
+          pip3 install --ignore-installed ./core_fs_th_os-0.0.1-py3-none-any.whl
       - name: Start Application
         run: |
           nohup python3 -u ./example_app/app.py dir --debug &
@@ -124,7 +124,7 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          pip3 install --ignore-installed core_fs_th_os-0.0.1-py3-none-any.whl
+          pip3 install --ignore-installed ./core_fs_th_os-0.0.1-py3-none-any.whl
       - name: Start Application
         run: |
           nohup python3 -u ./example_app/app.py dir --debug &
@@ -166,7 +166,7 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          pip3 install --ignore-installed core_fs_th_os-0.0.1-py3-none-any.whl
+          pip3 install --ignore-installed ./core_fs_th_os-0.0.1-py3-none-any.whl
       - name: Start Application
         run: |
           nohup python3 -u ./example_app/app.py dir --debug &
