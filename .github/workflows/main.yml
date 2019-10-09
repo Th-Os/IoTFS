@@ -52,6 +52,11 @@ jobs:
           ./install_fuse.sh $FUSE_VERSION
       - name: Install dependencies
         run: pip3 install -r requirements.txt
+      - name: Lookup
+        run: |
+          ls
+          cd corefs
+          ls
       - name: Start Application
         run: |
           nohup python3 -u ./corefs/core.py dir --debug &
