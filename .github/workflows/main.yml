@@ -64,7 +64,7 @@ jobs:
       - name: Upgrading pip
         run: python -m pip install --upgrade pip
       - name: Installing fuse $FUSE_VERSION
-        uses: actions/install-fuse
+        uses: ./.github/actions/install-fuse
           with:
             version: $FUSE_VERSION
       - name: Install MQTT Broker
