@@ -34,7 +34,7 @@ jobs:
           # exit-zero treats all errors as warnings.
           flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
   build:
-    needs: install_test
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CoreFS
