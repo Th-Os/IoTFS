@@ -131,10 +131,11 @@ jobs:
       - name: Application Status Before Test
         run: |
           cat logs/*.log
-      - name: Run Basic Tests with pytest
+      - name: Run Tests with pytest
         run: |
           pip3 install pytest
           pytest --ignore tests/advanced
+          cat logs/*.log
       - name: Read Logs
         run: |
           cat logs/*.log
@@ -181,7 +182,7 @@ jobs:
       - name: Application Status Before Test
         run: |
           cat logs/*.log
-      - name: Run Basic Tests with pytest
+      - name: Run Tests with pytest
         run: |
           pip3 install pytest
           pytest tests/advanced/input
