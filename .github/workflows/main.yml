@@ -65,9 +65,14 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.7.4
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
       - name: Install Dependencies
         run: |
           python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
       - name: Download Archive
         uses: actions/download-artifact@master
         with:
@@ -106,9 +111,14 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.7.4
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
       - name: Install Dependencies
         run: |
           python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
       - name: Install MQTT Broker
         run: |
           sudo apt-get install mosquitto
@@ -151,10 +161,14 @@ jobs:
         uses: actions/setup-python@master
         with:
           python-version: 3.7.4
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
       - name: Install Dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --upgrade setuptools wheel
+          pip3 install -r requirements.txt
       - name: Download Archive
         uses: actions/download-artifact@master
         with:
