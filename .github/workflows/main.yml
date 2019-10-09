@@ -64,15 +64,9 @@ jobs:
       - name: Upgrading pip
         run: python -m pip install --upgrade pip
       - name: Installing fuse $FUSE_VERSION
-        run: |
-          sudo apt-get install ninja-build
-          wget https://github.com/libfuse/libfuse/releases/download/fuse-$FUSE_VERSION/fuse-$FUSE_VERSION.tar.xz
-          pip install meson
-          tar xf fuse-$FUSE_VERSION.tar.xz
-          cd fuse-$FUSE_VERSION; mkdir build; cd build; meson ..; ninja; sudo ninja install
-          ls /usr/local/lib
-          ls /lib
-          sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.$FUSE_VERSION /lib/x86_64-linux-gnu/libfuse3.so.3
+        uses: ../actions/install-fuse
+          with:
+            version: $FUSE_VERSION
       - name: Install MQTT Broker
         run: |
           sudo apt-get install mosquitto
