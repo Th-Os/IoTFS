@@ -13,6 +13,7 @@ env:
   PACKAGE_NAME: core_fs_th_os
   PACKAGE_VERSION: 0.0.1
   PYTHON_VERSION: 3.7.4
+  PYTHON_PATH: corefs
   FUSE_VERSION: 3.7.0
 jobs:
   lint: # install, lint, test, build
@@ -169,7 +170,7 @@ jobs:
       - name: Run Basic Tests with pytest
         run: |
           pip3 install pytest
-          pytest --ignore tests/advanced
+          pytest tests/advanced/input
       - name: Read Logs
         run: |
           cat logs/*.log
@@ -210,7 +211,7 @@ jobs:
       - name: Run Basic Tests with pytest
         run: |
           pip3 install pytest
-          pytest --ignore tests/advanced
+          pytest tests/advanced/output
       - name: Read Logs
         run: |
           cat logs/*.log
