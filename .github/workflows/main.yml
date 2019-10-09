@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@master
         with:
           name: package
-          path: dist/$PACKAGE_NAME-$PACKAGE_VERSION-py3-none-any.whl
+          path: dist/core_fs_th_os-0.0.1-py3-none-any.whl # needs dynamic name
   test_app:
     needs: build
     runs-on: ubuntu-latest
