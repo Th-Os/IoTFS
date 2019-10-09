@@ -2,30 +2,29 @@ from argparse import ArgumentParser
 import concurrent.futures
 import os
 
-from filesystem.fs import FileSystemStarter
-from filesystem.standard_fs import StandardFileSystem
-from adapter.mqtt.mqtt_adapter import MQTT_Adapter
-from adapter.mqtt.mqtt_client import MQTT_Client
+from corefs.filesystem.fs import FileSystemStarter, FileSystem
+from corefs.filesystem.standard_fs import StandardFileSystem
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 class CoreFS():
 
-    def __init__(self, mountpoint, debug=False):
+    def __init__(self, mountpoint, fs=None, adapters=[], connectors=[], debug=False):
         log = _logging.create_logger(debug=debug)
         log.info("Starting application.")
         os.environ["MOUNT_POINT"] = os.path.abspath(mountpoint)
 
-        fs = StandardFileSystem(mountpoint, debug)
-        mqtt = MQTT_Client(mountpoint, debug)
+        if fs is None or not isinstance(fs, FileSystem):
+            fs = StandardFileSystem(mountpoint, debug)
 
         try:
             if not os.path.isdir(mountpoint):
                 os.mkdir(mountpoint)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)
-                executor.submit(MQTT_Adapter(mqtt).start)
+                for adapter in adapters:
+                    executor.submit(adapter.start)
 
         except (BaseException, Exception) as e:
             log.error(e)

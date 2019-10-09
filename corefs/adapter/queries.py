@@ -1,7 +1,7 @@
 import os
 import stat
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 class Types():

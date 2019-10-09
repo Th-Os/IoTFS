@@ -3,20 +3,23 @@ from sys import stdout
 import os
 
 
-def create_logger(name="root", debug=False, with_file=True):
+def create_logger(name="corefs", debug=False, with_file=True):
     formatter = logging.Formatter('[%(name)s | %(threadName)s | %(asctime)s.%(msecs)03d] %(levelname)s: '
                                   '%(message)s', datefmt="%Y-%m-%d %H:%M:%S")
+
+    logger = logging.getLogger(
+        name) if name == "corefs" else logging.getLogger("corefs." + name)
+
     if with_file:
         if os.path.isdir("logs") is False:
             os.mkdir("logs")
-        fh = logging.FileHandler(os.path.join("logs", name + ".log"), "w+")
+        fh = logging.FileHandler(os.path.join(
+            "logs", logger.name + ".log"), "w+")
     sh = logging.StreamHandler(stream=stdout)
 
     if with_file:
         fh.setFormatter(formatter)
     sh.setFormatter(formatter)
-
-    logger = logging.getLogger() if name == "root" else logging.getLogger(name)
 
     if len(logger.handlers) > 0:
         logger.handlers = []

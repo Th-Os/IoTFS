@@ -1,4 +1,4 @@
-from filesystem.fs import FileSystem
+from corefs.filesystem.fs import FileSystem
 
 
 class StandardFileSystem(FileSystem):

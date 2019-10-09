@@ -16,10 +16,10 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from filesystem.node import File, Directory, EntryAttributes
-from filesystem.node import DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
+from corefs.filesystem.node import File, Directory, EntryAttributes
+from corefs.filesystem.node import DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 def wrapper(func):

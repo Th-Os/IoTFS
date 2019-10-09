@@ -10,7 +10,7 @@ class MQTT_Client(mqtt.Client, Client):
 
     def __init__(self, entry_point, debug):
         mqtt.Client.__init__(self, "Listener")
-        Client.__init__(self, "client.mQTT")
+        Client.__init__(self, "client.mqtt")
         self.log.info("Starting Client \"%s\"",
                       self.__class__.__name__)
         self.entry = os.path.join(".", entry_point)

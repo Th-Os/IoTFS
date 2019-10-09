@@ -9,40 +9,25 @@ on:
       - master
       - dev
       - test_actions
-
+env:
+  PACKAGE_NAME: core_fs_th_os
+  PACKAGE_VERSION: 0.0.1
+  PYTHON_VERSION: 3.7
+  FUSE_VERSION: 3.7.0
 jobs:
-  build:
+  lint: # install, lint, test, build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Set up Python 3.7
+      - name: Set up Python $PYTHON_VERSION
         uses: actions/setup-python@master
         with:
-          python-version: 3.7
+          python-version: $PYTHON_VERSION
       - name: Upgrading pip
         run: python -m pip install --upgrade pip
-      - name: Installing fuse 3.7 # Create new action for this -> with statement
-        env: 
-          FUSE_VERSION: 3.7.0
-        run: |
-          sudo apt-get install ninja-build
-          wget https://github.com/libfuse/libfuse/releases/download/fuse-$FUSE_VERSION/fuse-$FUSE_VERSION.tar.xz
-          pip install meson
-          tar xf fuse-$FUSE_VERSION.tar.xz
-          cd fuse-$FUSE_VERSION; mkdir build; cd build; meson ..; ninja; sudo ninja install
-          ls /usr/local/lib
-          ls /lib
-          sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.$FUSE_VERSION /lib/x86_64-linux-gnu/libfuse3.so.3
-      - name: Install MQTT Broker
-        run: |
-          sudo apt-get install mosquitto
-          echo `service mosquitto status`
       - name: Checkout CoreFS
         uses: actions/checkout@master
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Check Directories # Only for testing purpose
-        run: cd ..; ls;
       - name: Lint with flake8
         run: |
           pip install flake8
@@ -68,3 +53,83 @@ jobs:
         run: |
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
+  install_test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python $PYTHON_VERSION
+        uses: actions/setup-python@master
+        with:
+          python-version: $PYTHON_VERSION
+      - name: Upgrading pip
+        run: python -m pip install --upgrade pip
+      - name: Installing fuse $FUSE_VERSION
+        run: |
+          sudo apt-get install ninja-build
+          wget https://github.com/libfuse/libfuse/releases/download/fuse-$FUSE_VERSION/fuse-$FUSE_VERSION.tar.xz
+          pip install meson
+          tar xf fuse-$FUSE_VERSION.tar.xz
+          cd fuse-$FUSE_VERSION; mkdir build; cd build; meson ..; ninja; sudo ninja install
+          ls /usr/local/lib
+          ls /lib
+          sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.$FUSE_VERSION /lib/x86_64-linux-gnu/libfuse3.so.3
+      - name: Install MQTT Broker
+        run: |
+          sudo apt-get install mosquitto
+          echo `service mosquitto status`
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Start Application
+        run: |
+          nohup python3 -u ./src/main.py dir --debug-fuse --debug &
+          echo $! > app.pid
+      - name: Application Status Before Test
+        run: |
+          cat logs/*.log
+      - name: Run Basic Tests with pytest
+        run: |
+          pip install pytest
+          pytest --ignore tests/advanced
+      - name: Read Logs
+        run: |
+          cat logs/*.log
+      - name: Stop Application
+        run: |
+          kill `cat app.pid` # kill resulting PID
+          sudo umount dir
+  build:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Package
+        run: |
+          python3 setup.py sdist bdist_wheel
+      - name: Upload Archive
+        uses: actions/upload-artifact@master
+        with:
+          name: package
+          path: dist/$PACKAGE_NAME-$PACKAGE_VERSION-py3-none-any.whl
+  test_input: # TODO: Install fuse, mqtt, python, pip; Start application; Run advanced tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: package.whl
+      - name: Lookup Archive
+        run: ls
+  test_output:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Archive
+      uses: actions/download-artifact@master
+      with:
+        name: package
+        path: package.whl
+    - name: Lookup Archive
+      run: ls

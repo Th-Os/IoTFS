@@ -1,11 +1,11 @@
-from utils import _logging
+from corefs.utils import _logging
 
 
 class Client():
 
-    def __init__(self, name="client"):
+    def __init__(self, name):
         self.name = name
-        self.log = _logging.create_logger(name, True)
+        self.log = _logging.create_logger(self.__class__.__name__, True)
         self.log.info("Init %s", name)
         self.observers = dict()
 

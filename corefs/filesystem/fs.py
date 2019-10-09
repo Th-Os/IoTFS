@@ -5,9 +5,9 @@ import pyfuse3
 from pyfuse3 import FUSEError
 import trio
 
-from filesystem._fs import _FileSystem
+from corefs.filesystem._fs import _FileSystem
 
-from utils import _logging
+from corefs.utils import _logging
 
 # Think about: Observer Pattern with signals and not over this. This could result in problems between threads and trio
 # This could result in events for the connector.listener
