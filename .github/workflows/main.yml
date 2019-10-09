@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: 3.7.4
       - name: Upgrading pip
-        run: python -m pip install --upgrade pip
+        run: python3 -m pip install --upgrade pip
       - name: Checkout CoreFS
         uses: actions/checkout@master
       - name: Lint with flake8
@@ -44,15 +44,17 @@ jobs:
         with:
           python-version: 3.7.4
       - name: Upgrading pip
-        run: python -m pip install --upgrade pip
+        run: python3 -m pip install --upgrade pip
       - name: Installing FUSE
-        run: sudo sh ./install_fuse.sh $FUSE_VERSION
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
       - name: Install MQTT Broker
         run: |
           sudo apt-get install mosquitto
           echo `service mosquitto status`
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip3 install -r requirements.txt
       - name: Start Application
         run: |
           nohup python3 -u ./src/main.py dir --debug-fuse --debug &
@@ -62,7 +64,7 @@ jobs:
           cat logs/*.log
       - name: Run Basic Tests with pytest
         run: |
-          pip install pytest
+          pip3 install pytest
           pytest --ignore tests/advanced
       - name: Read Logs
         run: |
@@ -77,6 +79,14 @@ jobs:
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
+      - name: Set up Python 3.7.4
+        uses: actions/setup-python@master
+        with:
+          python-version: 3.7.4
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --upgrade setuptools wheel
       - name: Build Package
         run: |
           python3 setup.py sdist bdist_wheel
@@ -89,6 +99,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python 3.7.4
+        uses: actions/setup-python@master
+        with:
+          python-version: 3.7.4
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --upgrade setuptools wheel
       - name: Download Archive
         uses: actions/download-artifact@master
         with:
@@ -100,10 +118,18 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download Archive
-      uses: actions/download-artifact@master
-      with:
-        name: package
-        path: package.whl
-    - name: Lookup Archive
-      run: ls
+      - name: Set up Python 3.7.4
+        uses: actions/setup-python@master
+        with:
+          python-version: 3.7.4
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --upgrade setuptools wheel
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: package.whl
+      - name: Lookup Archive
+        run: ls
