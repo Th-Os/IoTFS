@@ -13,7 +13,6 @@ env:
   PACKAGE_NAME: core_fs_th_os
   PACKAGE_VERSION: 0.0.1
   PYTHON_VERSION: 3.7.4
-  PYTHON_PATH: corefs
   FUSE_VERSION: 3.7.0
 jobs:
   lint: # install, lint, test, build
@@ -34,47 +33,6 @@ jobs:
           flake8 ./src --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.
           flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
-  install_test:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout CoreFS
-        uses: actions/checkout@master
-      - name: Set up Python 3.7.4
-        uses: actions/setup-python@master
-        with:
-          python-version: 3.7.4
-      - name: Upgrading pip
-        run: python3 -m pip install --upgrade pip
-      - name: Installing FUSE
-        run: |
-          sudo chmod 777 install_fuse.sh
-          ./install_fuse.sh $FUSE_VERSION
-      - name: Install dependencies
-        run: pip3 install -r requirements.txt
-      - name: Lookup
-        run: |
-          ls
-          cd corefs
-          ls
-      - name: Start Application
-        run: |
-          nohup python3 -u ./corefs/core.py dir --debug &
-          echo $! > app.pid
-      - name: Application Status Before Test
-        run: |
-          cat logs/*.log
-      - name: Run Basic Tests with pytest
-        run: |
-          pip3 install pytest
-          pytest --ignore tests/advanced
-      - name: Read Logs
-        run: |
-          cat logs/*.log
-      - name: Stop Application
-        run: |
-          kill `cat app.pid` # kill resulting PID
-          sudo umount dir
   build:
     needs: install_test
     runs-on: ubuntu-latest
