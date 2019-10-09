@@ -94,7 +94,7 @@ jobs:
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
   build:
-    needs: install
+    needs: install_test
     runs-on: ubuntu-latest
     steps:
       - name: Build Package
