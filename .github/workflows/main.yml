@@ -12,16 +12,16 @@ on:
 env:
   PACKAGE_NAME: core_fs_th_os
   PACKAGE_VERSION: 0.0.1
-  PYTHON_VERSION: 3.7
+  PYTHON_VERSION: 3.7.4
   FUSE_VERSION: 3.7.0
 jobs:
   lint: # install, lint, test, build
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Python $PYTHON_VERSION
+      - name: Set up Python 3.7.4 # env variable not working here
         uses: actions/setup-python@master
         with:
-          python-version: $PYTHON_VERSION
+          python-version: 3.7.4
       - name: Upgrading pip
         run: python -m pip install --upgrade pip
       - name: Checkout CoreFS
