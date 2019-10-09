@@ -37,6 +37,8 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
       - name: Set up Python 3.7.4
         uses: actions/setup-python@master
         with:
@@ -51,8 +53,6 @@ jobs:
         run: |
           sudo apt-get install mosquitto
           echo `service mosquitto status`
-      - name: Checkout CoreFS
-        uses: actions/checkout@master
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Start Application
@@ -77,6 +77,8 @@ jobs:
     needs: install_test
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
       - name: Build Package
         run: |
           python3 setup.py sdist bdist_wheel

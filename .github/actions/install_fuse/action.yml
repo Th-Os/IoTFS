@@ -1,0 +1,13 @@
+
+name: 'Install FUSE'
+description: 'Installing FUSE with version'
+inputs:
+  version:  # id of input
+    description: 'Version of FUSE'
+    required: true
+    default: '3.7.0'
+runs:
+  using: 'sh'
+  main: install_fuse.sh
+  args:
+    - ${{ inputs.version }}
