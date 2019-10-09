@@ -59,6 +59,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
       - name: Set up Python 3.7.4
         uses: actions/setup-python@master
         with:
@@ -76,7 +78,6 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          python3 setup.py sdist bdist_wheel
           pip3 install --ignore-installed package.whl
       - name: Start Application
         run: |
@@ -100,6 +101,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
       - name: Set up Python 3.7.4
         uses: actions/setup-python@master
         with:
@@ -121,7 +124,6 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          python3 setup.py sdist bdist_wheel
           pip3 install --ignore-installed package.whl
       - name: Start Application
         run: |
@@ -145,6 +147,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
       - name: Set up Python 3.7.4
         uses: actions/setup-python@master
         with:
@@ -162,7 +166,6 @@ jobs:
         run: ls
       - name: Install Package
         run: |
-          python3 setup.py sdist bdist_wheel
           pip3 install --ignore-installed package.whl
       - name: Start Application
         run: |
