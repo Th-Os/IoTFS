@@ -55,11 +55,11 @@ jobs:
         with:
           name: package
           path: dist # needs dynamic name
-  install_test:
+  install_and_test:
     needs: lint
     runs-on: ubuntu-latest
     env:
-      PYTHON_PATH: corefs
+      PYTHONPATH: corefs
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
