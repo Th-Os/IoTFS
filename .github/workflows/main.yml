@@ -46,7 +46,7 @@ jobs:
       - name: Upgrading pip
         run: python -m pip install --upgrade pip
       - name: Installing FUSE
-        run: sudo ./install_fuse.sh $FUSE_VERSION
+        run: sudo sh ./install_fuse.sh $FUSE_VERSION
       - name: Install MQTT Broker
         run: |
           sudo apt-get install mosquitto
