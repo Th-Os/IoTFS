@@ -10,16 +10,18 @@ on:
       - dev
       - test_actions
 env:
-  PYTHON_VERSION: 3.7.4
   FUSE_VERSION: 3.7.0
 jobs:
   lint: # install, lint, test, build
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Python 3.7.4 # env variable not working here
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
       - name: Checkout CoreFS
@@ -32,15 +34,18 @@ jobs:
           # exit-zero treats all errors as warnings.
           flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
   build:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Set up Python 3.7.4
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Install Dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -54,6 +59,9 @@ jobs:
           name: package
           path: dist
   install_and_test:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     needs: lint
     runs-on: ubuntu-latest
     env:
@@ -61,10 +69,10 @@ jobs:
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Set up Python 3.7.4
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
       - name: Installing FUSE
@@ -95,15 +103,18 @@ jobs:
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
   test_app:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Set up Python 3.7.4
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Installing FUSE
         run: |
           sudo chmod 777 install_fuse.sh
@@ -140,16 +151,19 @@ jobs:
         run: |
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
-  test_input: # TODO: Install fuse, mqtt, python, pip; Start application; Run advanced tests
+  test_input:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Set up Python 3.7.4
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Installing FUSE
         run: |
           sudo chmod 777 install_fuse.sh
@@ -191,15 +205,18 @@ jobs:
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
   test_output:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Set up Python 3.7.4
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Installing FUSE
         run: |
           sudo chmod 777 install_fuse.sh
