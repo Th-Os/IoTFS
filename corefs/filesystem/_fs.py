@@ -17,7 +17,7 @@ else:
     faulthandler.enable()
 
 from filesystem.node import File, Directory, EntryAttributes
-from filesystem.node import DIR_TYPE, SWAP_TYPE, FILE_TYPE, UTF_8_ENCODING, BYTE_ENCODING
+from filesystem.node import Types, Encodings
 
 from utils import _logging
 
@@ -42,22 +42,17 @@ class _FileSystem(pyfuse3.Operations):
     def __init__(self, mount_point, debug=False):
         super(_FileSystem, self).__init__()
 
-        # fuse debug starts with 2 for operations
-        self.unique = 2
         self.log = _logging.create_logger(self.__class__.__name__, debug)
         self.log.info("Init %s", self.__class__.__name__)
+
+        # fuse debug starts with 2 for operations
+        self.unique = 2
+
         self.nodes = dict()
         self.nodes[pyfuse3.ROOT_INODE] = Directory(
             "root", os.path.abspath(mount_point), root=True)
 
-        self.log.debug("Size of nodes: %d", len(self.nodes))
-
-        # TODO: Think about reimplementing this into node.py
-        self._fd_inode_map = dict()
-        self._inode_fd_map = dict()
-        self._fd_open_count = dict()
-
-    def __add_inode(self, name, parent_inode, node_type=FILE_TYPE, data="", mode=7777):
+    def __add_inode(self, name, parent_inode, node_type=Types.FILE, data="", mode=7777):
         path = self.nodes[parent_inode].get_full_path()
         self.log.info('__add_inode with path %s and name %s', path, name)
         if path[-1] != os.path.sep:
@@ -70,7 +65,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("Found no inode")
             self.log.debug(
                 "Create: inode %d, with path: %s, and name: %s", inode, path, name)
-            if node_type == FILE_TYPE or node_type == SWAP_TYPE:
+            if node_type == Types.FILE or node_type == Types.SWAP:
                 self.nodes[inode] = File(
                     name, path, mode=mode, parent=parent_inode, data=data)
             else:
@@ -146,8 +141,8 @@ class _FileSystem(pyfuse3.Operations):
         for idx in array:
             self.log.debug(idx)
             self.log.debug("check %s vs %s", self.nodes[idx].get_name(
-                encoding=UTF_8_ENCODING), name)
-            if self.nodes[idx].get_name(encoding=UTF_8_ENCODING) == name:
+                encoding=Encodings.UTF_8_ENCODING), name)
+            if self.nodes[idx].get_name(encoding=Encodings.UTF_8_ENCODING) == name:
                 return self.nodes[idx]
             self.log.debug("failed")
         # nano for new file -> results in didnt find any
@@ -158,7 +153,7 @@ class _FileSystem(pyfuse3.Operations):
     def __get_index_by_name(self, name):
         self.log.info("get node by name: %s", name)
         for idx in self.nodes:
-            if self.nodes[idx].get_name(BYTE_ENCODING) == name:
+            if self.nodes[idx].get_name(Encodings.BYTE_ENCODING) == name:
                 return idx
         raise Exception("Found no node for name %s", name)
 
@@ -209,15 +204,16 @@ class _FileSystem(pyfuse3.Operations):
                     raise Exception("Didn't find inode in nodes.")
 
                 # debug this
-                if node.get_type() == DIR_TYPE:
+                if node.get_type() == Types.DIR:
                     self.log.debug("This is a directory.")
                     entry.st_mode = (stat.S_IFDIR | 0o755)
                     entry.st_size = 0
-                elif node.get_type() == FILE_TYPE or node.get_type() == SWAP_TYPE:
+                elif node.get_type() == Types.FILE or node.get_type() == Types.SWAP:
                     self.log.debug("This is a file of type %i.",
                                    node.get_type())
                     entry.st_mode = (stat.S_IFREG | 0o666)
-                    entry.st_size = node.get_data_size(encoding=UTF_8_ENCODING)
+                    entry.st_size = node.get_data_size(
+                        encoding=Encodings.UTF_8_ENCODING)
                     self.log.debug("size of file: %d", entry.st_size)
                 else:
                     self.log.error("Found no corresponding type.")
@@ -365,7 +361,7 @@ class _FileSystem(pyfuse3.Operations):
         children = self.__get_children(parent_inode)
         for inode in children:
             node = self.nodes[inode]
-            if node.get_name(encoding=UTF_8_ENCODING) == name:
+            if node.get_name(encoding=Encodings.UTF_8_ENCODING) == name:
                 self.log.debug("Found existing inode %d", inode)
                 if self.nodes[inode].is_locked():
                     self.log.error("Inode %d is locked", inode)
@@ -502,7 +498,7 @@ class _FileSystem(pyfuse3.Operations):
         try:
             output = ""
             node = self.nodes[inode]
-            data = node.get_data(encoding=UTF_8_ENCODING)
+            data = node.get_data(encoding=Encodings.UTF_8_ENCODING)
             self.log.debug("data: %s", data)
             buffer = buf.decode("utf-8")
             self.log.debug("buffer: %s", buffer)
@@ -770,7 +766,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("----")
 
         return self.__getattr(self.__add_inode(name, parent_inode,
-                                               node_type=DIR_TYPE, mode=mode))
+                                               node_type=Types.DIR, mode=mode))
 
     @wrapper
     async def opendir(self, inode, ctx):
@@ -800,7 +796,7 @@ class _FileSystem(pyfuse3.Operations):
                     continue
 
                 # Omitting swap files.
-                if node.get_type() == SWAP_TYPE:
+                if node.get_type() == Types.SWAP:
                     self.log.debug("swp: %s", node.get_name())
                     continue
                 if node.is_invisible() is True:

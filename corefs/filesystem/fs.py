@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import pyfuse3
 from pyfuse3 import FUSEError
 import trio
@@ -16,25 +15,36 @@ from utils import _logging
 class FileSystem(_FileSystem):
 
     def __init__(self, mount_point, debug=False):
-        self.logger = _logging.create_logger("FileSystem")
-        self.logger.info("Hello FileSystem")
-        super(FileSystem, self).__init__(mount_point, debug)
+        super().__init__(mount_point, debug)
         self.debug = debug
         self.mount_point = mount_point
 
-    async def open(self, inode, flags, ctx):
-        self.logger.warning("hello open call")
-        super().open(inode, flags, ctx)
-        self.logger.error("opened inode %d", inode)
-
     async def create(self, parent_inode, name, mode, flags, ctx):
-        self.logger.warning("hello create call")
-        super().create(parent_inode, name, mode, flags, ctx)
-        self.logger.error("created %s", name)
+        return await super().create(parent_inode, name, mode, flags, ctx)
 
-    async def opendir(self, inode, ctx):
-        self.logger.warning("hello opendir call!!!")
-        return await super().opendir(inode, ctx)
+    async def mknod(self, parent_inode, name, mode, rdev, ctx):
+        return await super().mknod(parent_inode, name, mode, rdev, ctx)
+
+    async def mkdir(self, parent_inode, name, mode, ctx):
+        return await super().mkdir(parent_inode, name, mode, ctx)
+
+    async def read(self, inode, off, size):
+        return await super().read(inode, off, size)
+
+    async def readdir(self, inode, start_id, token):
+        return await super().readdir(inode, start_id, token)
+
+    async def write(self, inode, off, buf):
+        return await super().write(inode, off, buf)
+
+    async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
+        return await super().rename(parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx)
+
+    async def unlink(self, parent_inode, name, ctx):
+        return await super().unlink(parent_inode, name, ctx)
+
+    async def rmdir(self, parent_inode, name, ctx):
+        return await super().rmdir(parent_inode, name, ctx)
 
 
 class FileSystemStarter():
