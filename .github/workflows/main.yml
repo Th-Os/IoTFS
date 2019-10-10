@@ -10,8 +10,6 @@ on:
       - dev
       - test_actions
 env:
-  PACKAGE_NAME: core_fs_th_os
-  PACKAGE_VERSION: 0.0.1
   PYTHON_VERSION: 3.7.4
   FUSE_VERSION: 3.7.0
 jobs:
@@ -54,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@master
         with:
           name: package
-          path: dist # needs dynamic name
+          path: dist
   install_and_test:
     needs: lint
     runs-on: ubuntu-latest
@@ -80,7 +78,7 @@ jobs:
           echo "$PYTHONPATH"
       - name: Start Application
         run: |
-          nohup python3 -u ./corefs/core.py dir --debug & # TODO: Why does this fail?
+          nohup python3 -u ./corefs/core.py dir --debug &
           echo $! > app.pid
       - name: Application Status Before Test
         run: |
