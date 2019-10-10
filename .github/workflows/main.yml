@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python 3.7.4 # env variable not working here
         uses: actions/setup-python@master
         with:
-          python-version: ${{ PYTHON_VERSION }}
+          python-version: 3.7.0
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
       - name: Checkout CoreFS
@@ -34,7 +34,6 @@ jobs:
           # exit-zero treats all errors as warnings.
           flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
   build:
-    needs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -59,7 +58,6 @@ jobs:
           name: package
           path: dist # needs dynamic name
   install_and_test:
-    needs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -72,7 +70,7 @@ jobs:
       - name: Set up Python 3.7.4
         uses: actions/setup-python@master
         with:
-          python-version: 3.7.4
+          python-version: ${{ matrix.python }}
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
       - name: Installing FUSE
