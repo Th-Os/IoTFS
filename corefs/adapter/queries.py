@@ -1,7 +1,7 @@
 import os
 import stat
 
-from corefs.utils import _logging
+from utils import _logging
 
 
 class Types():
@@ -13,7 +13,6 @@ class Types():
 
 class Query():
 
-    # TODO: Query should allow queueing
     # TODO: Query should be extended with permissions
     def __init__(self, node_type, name, path, callback):
         self.log = _logging.create_logger("Query", True)

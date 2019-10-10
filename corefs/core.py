@@ -2,10 +2,10 @@ from argparse import ArgumentParser
 import concurrent.futures
 import os
 
-from corefs.filesystem.fs import FileSystemStarter, FileSystem
-from corefs.filesystem.standard_fs import StandardFileSystem
+from filesystem.fs import FileSystemStarter, FileSystem
+from filesystem.standard_fs import StandardFileSystem
 
-from corefs.utils import _logging
+from utils import _logging
 
 
 class CoreFS():
@@ -17,15 +17,16 @@ class CoreFS():
 
         if fs is None or not isinstance(fs, FileSystem):
             fs = StandardFileSystem(mountpoint, debug)
-
         try:
             if not os.path.isdir(mountpoint):
                 os.mkdir(mountpoint)
+            FileSystemStarter(fs).start()
+            '''
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)
                 for adapter in adapters:
                     executor.submit(adapter.start)
-
+            '''
         except (BaseException, Exception) as e:
             log.error(e)
 

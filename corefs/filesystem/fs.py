@@ -5,20 +5,36 @@ import pyfuse3
 from pyfuse3 import FUSEError
 import trio
 
-from corefs.filesystem._fs import _FileSystem
+from filesystem._fs import _FileSystem
 
-from corefs.utils import _logging
+from utils import _logging
 
-# Think about: Observer Pattern with signals and not over this. This could result in problems between threads and trio
 # This could result in events for the connector.listener
+# TODO: Producer & Consumer Pattern with Queue
 
 
 class FileSystem(_FileSystem):
 
     def __init__(self, mount_point, debug=False):
-        super().__init__(mount_point, debug)
+        self.logger = _logging.create_logger("FileSystem")
+        self.logger.info("Hello FileSystem")
+        super(FileSystem, self).__init__(mount_point, debug)
         self.debug = debug
         self.mount_point = mount_point
+
+    async def open(self, inode, flags, ctx):
+        self.logger.warning("hello open call")
+        super().open(inode, flags, ctx)
+        self.logger.error("opened inode %d", inode)
+
+    async def create(self, parent_inode, name, mode, flags, ctx):
+        self.logger.warning("hello create call")
+        super().create(parent_inode, name, mode, flags, ctx)
+        self.logger.error("created %s", name)
+
+    async def opendir(self, inode, ctx):
+        self.logger.warning("hello opendir call!!!")
+        return await super().opendir(inode, ctx)
 
 
 class FileSystemStarter():
