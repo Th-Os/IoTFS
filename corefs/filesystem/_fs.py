@@ -16,10 +16,10 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from filesystem.node import File, Directory, EntryAttributes
-from filesystem.node import Types, Encodings
+from corefs.filesystem.node import File, Directory, EntryAttributes
+from corefs.filesystem.node import Types, Encodings
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 def wrapper(func):
@@ -137,6 +137,7 @@ class _FileSystem(pyfuse3.Operations):
     def __get_node_by_name(self, name, array=None):
         if array is None:
             array = self.nodes
+        name = os.fsdecode(name)
         self.log.info("get node by name: %s", name)
         for idx in array:
             self.log.debug(idx)

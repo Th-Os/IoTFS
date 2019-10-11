@@ -1,4 +1,4 @@
-from utils import _logging
+from corefs.utils import _logging
 
 
 class Client():

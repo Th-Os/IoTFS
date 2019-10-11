@@ -1,6 +1,6 @@
 import time
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 class Listener():
@@ -14,10 +14,8 @@ class Listener():
     def start(self):
         try:
             while True:
-                time.sleep(self.interval)
                 item = self.queue.get()
                 self.log.warning(self.queue.qsize())
-
                 self.log.info(item)
                 self.log.info(item.event.name)
                 self.log.info(item.operation.name)

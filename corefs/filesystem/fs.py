@@ -4,12 +4,9 @@ import pyfuse3
 from pyfuse3 import FUSEError
 import trio
 
-from filesystem._fs import _FileSystem
+from corefs.filesystem._fs import _FileSystem
 
-from utils import _logging
-
-# This could result in events for the connector.listener
-# TODO: Producer & Consumer Pattern with Queue
+from corefs.utils import _logging
 
 
 class FileSystem(_FileSystem):

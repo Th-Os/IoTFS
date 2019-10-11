@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="core-fs-th-os",
+    name="core-fs",
     version="0.0.1",
     author="Thomas Oswald",
     author_email="thomas.oswald@student.ur.de",
@@ -20,5 +20,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: Linux",
     ],
-    python_requires='>=3.5',
+    python_requires='>=3.5'
 )

@@ -1,8 +1,8 @@
 from enum import Enum
 
-from filesystem.fs import FileSystem
-from filesystem.node import LockedFile, LockedDirectory, Types
-from utils import _logging
+from corefs.filesystem.fs import FileSystem
+from corefs.filesystem.node import LockedFile, LockedDirectory, Types
+from corefs.utils import _logging
 
 
 class ProducerFilesystem(FileSystem):
@@ -62,14 +62,16 @@ class ProducerFilesystem(FileSystem):
             operation, node, LockedDirectory(self.nodes[parent_inode_new]), name_new))
 
     async def unlink(self, parent_inode, name, ctx):
+        removed_file = LockedFile(self.__get_node_by_name(name))
         await super().unlink(parent_inode, name, ctx)
         self.queue.put(RemoveObject(Operations.REMOVE_FILE,
-                                    LockedFile(self.__get_node_by_name())))
+                                    removed_file))
 
     async def rmdir(self, parent_inode, name, ctx):
+        removed_dir = LockedDirectory(self.__get_node_by_name(name))
         await super().rmdir(parent_inode, name, ctx)
         self.queue.put(RemoveObject(Operations.REMOVE_DIR,
-                                    LockedDirectory(self.__get_node_by_name())))
+                                    removed_dir))
 
     def __get_children(self, inode):
         inodes = super()._FileSystem__get_children(inode)
@@ -81,6 +83,9 @@ class ProducerFilesystem(FileSystem):
             else:
                 result.append(LockedDirectory(node))
         return result
+
+    def __get_node_by_name(self, name):
+        return super()._FileSystem__get_node_by_name(name)
 
 
 class Events(Enum):

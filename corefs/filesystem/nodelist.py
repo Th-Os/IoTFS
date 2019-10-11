@@ -1,4 +1,4 @@
-from filesystem.node import Node
+from corefs.filesystem.node import Node
 
 # TODO implement further and evaluate use.
 

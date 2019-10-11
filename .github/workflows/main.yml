@@ -64,8 +64,6 @@ jobs:
         python: [3.5.7, 3.7.4]
     needs: lint
     runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: corefs
     steps:
       - name: Checkout CoreFS
         uses: actions/checkout@master

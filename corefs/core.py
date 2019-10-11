@@ -3,12 +3,12 @@ import concurrent.futures
 import os
 from queue import Queue
 
-from filesystem.fs import FileSystemStarter, FileSystem
-#from filesystem.standard_fs import StandardFileSystem
-from filesystem.producer_fs import ProducerFilesystem
-from connector._listener import Listener
+from corefs.filesystem.fs import FileSystemStarter, FileSystem
+#from corefs.filesystem.standard_fs import StandardFileSystem
+from corefs.filesystem.producer_fs import ProducerFilesystem
+from corefs.connector._listener import Listener
 
-from utils import _logging
+from corefs.utils import _logging
 
 
 class CoreFS():
@@ -31,24 +31,3 @@ class CoreFS():
                     executor.submit(adapter.start)
         except (BaseException, Exception) as e:
             log.error(e)
-
-
-def parse_args():
-    '''Parse command line'''
-
-    parser = ArgumentParser()
-
-    parser.add_argument('mountpoint', type=str,
-                        help='Where to mount the file system')
-    parser.add_argument('--debug', action='store_true', default=False,
-                        help='Enable debugging output')
-    return parser.parse_args()
-
-
-def main():
-    options = parse_args()
-    CoreFS(options.mountpoint, debug=options.debug)
-
-
-if __name__ == "__main__":
-    main()
