@@ -4,12 +4,17 @@ from corefs.filesystem.fs import FileSystem
 from corefs.filesystem.node import LockedFile, LockedDirectory, Types
 from corefs.utils import _logging
 
+# TODO: Is a check for queue needed? Maybe as decorator
+
 
 class ProducerFilesystem(FileSystem):
 
-    def __init__(self, mount_point, queue, debug=False):
+    def __init__(self, mount_point, queue=None, debug=False):
         self.logger = _logging.create_logger("producer")
         super().__init__(mount_point, debug)
+        self.queue = queue
+
+    def setQueue(self, queue):
         self.queue = queue
 
     async def create(self, parent_inode, name, mode, flags, ctx):

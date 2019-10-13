@@ -84,7 +84,7 @@ jobs:
           echo "$PYTHONPATH"
       - name: Start Application
         run: |
-          nohup python3 -u ./corefs/core.py dir --debug &
+          nohup python3 -u ./start.py dir --debug &
           echo $! > app.pid
       - name: Application Status Before Test
         run: |

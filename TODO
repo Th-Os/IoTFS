@@ -1,5 +1,4 @@
 - Implementing Adapter
-    - using callback or async to get result
     - add errors
     - write tests for queries.py
         - for this a fs adapter will be needed
@@ -7,7 +6,6 @@
     - implement listener (inotify or directly in fs.py code?)
     - implement reader (simple read api)
 - Drawing hourglass model for iotfs
-- Package IoTFS and devide main code and add-ons (adapter/mqtt, adapter/fs)
 - FS functions to implement (ordered by importance from bottom to top):
     - removexattr
     - listxattr
@@ -28,8 +26,6 @@
     - rename
     - link
     - flush
-- Github Actions:
-    - new workflows or jobs for input and output of hourglass model -> package iotfs, execute "other" code outside of it
 
 
 

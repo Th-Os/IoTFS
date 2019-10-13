@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 from corefs.core import CoreFS
+from corefs.filesystem.standard_fs import StandardFileSystem
 
 '''
 This file is needed to start corefs in this package.
@@ -21,7 +22,8 @@ def parse_args():
 
 def main():
     options = parse_args()
-    CoreFS(options.mountpoint, debug=options.debug)
+    fs = StandardFileSystem(options.mountpoint, debug=options.debug)
+    CoreFS(fs, debug=options.debug)
 
 
 if __name__ == "__main__":

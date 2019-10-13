@@ -13,21 +13,26 @@ from corefs.utils import _logging
 
 class CoreFS():
 
-    def __init__(self, mountpoint, fs=None, adapters=[], connectors=[], debug=False):
+    def __init__(self, fs, adapters=[], listeners=[], debug=False):
         log = _logging.create_logger(debug=debug)
         log.info("Starting application.")
-        os.environ["MOUNT_POINT"] = os.path.abspath(mountpoint)
-        queue = Queue(0)
+        os.environ["MOUNT_POINT"] = os.path.abspath(fs.mount_point)
         if fs is None or not isinstance(fs, FileSystem):
-            fs = ProducerFilesystem(mountpoint, queue, debug=debug)
+            raise ValueError("No valid filesystem provided.")
+        if len(listeners) > 0 and isinstance(fs, ProducerFilesystem):
+            queue = Queue(0)
+            fs.setQueue(queue)
+            for listener in listeners:
+                listener.setQueue(queue)
         try:
-            if not os.path.isdir(mountpoint):
-                os.mkdir(mountpoint)
-            # FileSystemStarter(fs).start()
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + 2) as executor:
+            if not os.path.isdir(fs.mount_point):
+                os.mkdir(fs.mount_point)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + len(listeners) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)
-                executor.submit(Listener(queue).start)
                 for adapter in adapters:
                     executor.submit(adapter.start)
+                for listener in listeners:
+                    executor.submit(listener.start)
+
         except (BaseException, Exception) as e:
             log.error(e)
