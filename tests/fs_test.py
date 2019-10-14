@@ -10,7 +10,6 @@ def test_file():
     This code should run successfully.
     https://www.rath.org/pyfuse3-docs/gotchas.html
     '''
-    # test_file: FileNotFoundError when executing a second time. Why?
     file_path = os.path.join(ROOT_DIR, 'file_one')
     assert os.path.exists(file_path) is False
     with open(file_path, 'w+') as fh1:
@@ -40,7 +39,6 @@ def test_file_abs():
         fh1.seek(0)
         assert fh1.read() == "foobar"
     assert os.path.exists(file_path) is False
-    # os.remove(file_path)
 
 
 def test_file_std():

@@ -4,8 +4,6 @@ from corefs.filesystem.fs import FileSystem
 from corefs.filesystem.node import LockedFile, LockedDirectory, Types
 from corefs.utils import _logging
 
-# TODO: Is a check for queue needed? Maybe as decorator
-
 
 class ProducerFilesystem(FileSystem):
 
@@ -18,42 +16,56 @@ class ProducerFilesystem(FileSystem):
         self.queue = queue
 
     async def create(self, parent_inode, name, mode, flags, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         result = await super().create(parent_inode, name, mode, flags, ctx)
         self.queue.put(CreateObject(
             Operations.CREATE_FILE, LockedFile(self.nodes[result[0]])))
         return result
 
     async def mknod(self, parent_inode, name, mode, rdev, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         result = await super().mknod(parent_inode, name, mode, rdev, ctx)
         self.queue.put(CreateObject(
             Operations.CREATE_FILE, LockedFile(self.nodes[result.st_ino])))
         return result
 
     async def mkdir(self, parent_inode, name, mode, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         result = await super().mkdir(parent_inode, name, mode, ctx)
         self.queue.put(CreateObject(
             Operations.CREATE_DIR, LockedDirectory(self.nodes[result.st_ino])))
         return result
 
     async def read(self, inode, off, size):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         result = await super().read(inode, off, size)
         self.queue.put(ReadObject(
             Operations.READ_FILE, LockedFile(self.nodes[inode]), result))
         return result
 
     async def readdir(self, inode, start_id, token):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         await super().readdir(inode, start_id, token)
         result = self.__get_children(inode)
         self.queue.put(ReadObject(
             Operations.READ_DIR, LockedDirectory(self.nodes[inode]), result))
 
     async def write(self, inode, off, buf):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         result = await super().write(inode, off, buf)
         self.queue.put(WriteObject(
             Operations.WRITE_FILE, LockedFile(self.nodes[inode]), result))
         return result
 
     async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         await super().rename(parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx)
         node = self.__get_node_by_name(name_new)
         operation = None
@@ -67,12 +79,16 @@ class ProducerFilesystem(FileSystem):
             operation, node, LockedDirectory(self.nodes[parent_inode_new]), name_new))
 
     async def unlink(self, parent_inode, name, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         removed_file = LockedFile(self.__get_node_by_name(name))
         await super().unlink(parent_inode, name, ctx)
         self.queue.put(RemoveObject(Operations.REMOVE_FILE,
                                     removed_file))
 
     async def rmdir(self, parent_inode, name, ctx):
+        if self.queue is None:
+            raise ValueError("Queue is not provided.")
         removed_dir = LockedDirectory(self.__get_node_by_name(name))
         await super().rmdir(parent_inode, name, ctx)
         self.queue.put(RemoveObject(Operations.REMOVE_DIR,

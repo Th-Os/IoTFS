@@ -4,9 +4,7 @@ import os
 from queue import Queue
 
 from corefs.filesystem.fs import FileSystemStarter, FileSystem
-#from corefs.filesystem.standard_fs import StandardFileSystem
 from corefs.filesystem.producer_fs import ProducerFilesystem
-from corefs.connector._listener import Listener
 
 from corefs.utils import _logging
 

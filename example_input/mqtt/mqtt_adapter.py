@@ -1,7 +1,7 @@
 import os
 
-from corefs.adapter._adapter import Adapter
-from corefs.adapter.queries import CreateQuery, UpdateQuery, Types
+from corefs.input._adapter import Adapter
+from corefs.input.queries import CreateQuery, UpdateQuery, Types
 
 
 class MQTT_Adapter(Adapter):

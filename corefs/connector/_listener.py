@@ -21,6 +21,7 @@ class Listener():
             raise ValueError("Queue is missing.")
         try:
             while True:
+                # time.sleep(self.interval)
                 item = self.queue.get()
                 self.log.warning(self.queue.qsize())
                 self.process(item)

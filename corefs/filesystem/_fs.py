@@ -18,6 +18,7 @@ else:
 
 from corefs.filesystem.node import File, Directory, EntryAttributes
 from corefs.filesystem.node import Types, Encodings
+from corefs.filesystem.node_dict import NodeDict
 
 from corefs.utils import _logging
 
@@ -48,115 +49,9 @@ class _FileSystem(pyfuse3.Operations):
         # fuse debug starts with 2 for operations
         self.unique = 2
 
-        self.nodes = dict()
+        self.nodes = NodeDict(logger=self.log)
         self.nodes[pyfuse3.ROOT_INODE] = Directory(
             "root", os.path.abspath(mount_point), root=True)
-
-    def __add_inode(self, name, parent_inode, node_type=Types.FILE, data="", mode=7777):
-        path = self.nodes[parent_inode].get_full_path()
-        self.log.info('__add_inode with path %s and name %s', path, name)
-        if path[-1] != os.path.sep:
-            path += os.path.sep
-            self.log.debug("new path: %s", path)
-        inode = list(self.nodes.keys())[-1] + 1
-
-        # With hardlinks, one inode may map to multiple paths.
-        if inode not in self.nodes and inode is not pyfuse3.ROOT_INODE:
-            self.log.debug("Found no inode")
-            self.log.debug(
-                "Create: inode %d, with path: %s, and name: %s", inode, path, name)
-            if node_type == Types.FILE or node_type == Types.SWAP:
-                self.nodes[inode] = File(
-                    name, path, mode=mode, parent=parent_inode, data=data)
-            else:
-                self.nodes[inode] = Directory(
-                    name, path, mode=mode, parent=parent_inode)
-            self.nodes[inode].inc_open_count()
-            self.log.debug(self.nodes)
-        return inode
-
-    def __try_remove_inode(self, inode):
-        self.log.info("Trying to remove inode %d.", inode)
-        try:
-            if self.nodes[inode].get_open_count() <= 1:
-                self.log.debug("Removed inode %d", inode)
-                del self.nodes[inode]
-            else:
-                self.log.debug("Didn't remove inode %d", inode)
-        except KeyError:
-            self.log.warning("Inode %d doesn't exist.", inode)
-
-    def __try_decrease_op_count(self, inode):
-        self.log.warning("Trying to decrease op count of %d.", inode)
-        try:
-            self.nodes[inode].dec_open_count()
-            if self.nodes[inode].get_open_count() == 0:
-                self.nodes[inode].lock()
-            self.log.warning("New op count: %d",
-                             self.nodes[inode].get_open_count())
-        except KeyError:
-            self.log.error("No inode with key %d.", inode)
-        except Exception as e:
-            self.log.error(e)
-
-    def __try_increase_op_count(self, inode):
-        self.log.warning("Trying to increase op count of %d.", inode)
-        try:
-            self.nodes[inode].inc_open_count()
-        except KeyError:
-            self.warning("Inode %d does not exist.", inode)
-        except Exception as e:
-            self.log.error(e)
-
-    def __get_children(self, inode):
-        if type(self.nodes[inode]) is not Directory:
-            self.log.error("Inode %d is no directory.")
-            raise NotADirectoryError("Inode %d is no directory.")
-        return [idx for idx in self.nodes if self.nodes[idx].get_parent() == inode]
-
-    def __get_path(self, parent_inode, name):
-        self.log.debug("__get_path for inode with name %s", name)
-        if type(name) is not str:
-            name = name.decode("utf-8")
-        else:
-            self.log.debug("node name is already encoded in utf-8")
-        try:
-            if parent_inode == pyfuse3.ROOT_INODE:
-                path = os.path.join(self.nodes[parent_inode].get_path(), name)
-                self.log.info("new path: %s", path)
-            else:
-                node = self.nodes[parent_inode]
-                path = node["path"] + \
-                    os.path.join(node["name"].decode(
-                        "utf-8"), name)
-                self.log.info("new path: %s", path)
-            return path
-        except Exception as e:
-            self.log.error(e.msg)
-
-    def __get_node_by_name(self, name, array=None):
-        if array is None:
-            array = self.nodes
-        name = os.fsdecode(name)
-        self.log.info("get node by name: %s", name)
-        for idx in array:
-            self.log.debug(idx)
-            self.log.debug("check %s vs %s", self.nodes[idx].get_name(
-                encoding=Encodings.UTF_8_ENCODING), name)
-            if self.nodes[idx].get_name(encoding=Encodings.UTF_8_ENCODING) == name:
-                return self.nodes[idx]
-            self.log.debug("failed")
-        # nano for new file -> results in didnt find any
-        # TODO: What behavior would be appropriate for no found node?
-        self.log.error("didn't find any")
-        return None
-
-    def __get_index_by_name(self, name):
-        self.log.info("get node by name: %s", name)
-        for idx in self.nodes:
-            if self.nodes[idx].get_name(Encodings.BYTE_ENCODING) == name:
-                return idx
-        raise Exception("Found no node for name %s", name)
 
     def __getattr(self, inode):
         self.log.info("get attributes of %i", inode)
@@ -359,7 +254,7 @@ class _FileSystem(pyfuse3.Operations):
         name = name.decode("utf-8")
         self.log.debug("Name: %s", name)
         self.log.debug("Trying to find existing inode")
-        children = self.__get_children(parent_inode)
+        children = self.nodes.get_children(parent_inode)
         for inode in children:
             node = self.nodes[inode]
             if node.get_name(encoding=Encodings.UTF_8_ENCODING) == name:
@@ -376,18 +271,19 @@ class _FileSystem(pyfuse3.Operations):
 
             # Name of source file: .x.swp -> x
             src_name = name[1:-4]
-            node = self.__get_node_by_name(src_name)
+            node = self.nodes.get_node_by_name(src_name)
 
             # Case: Swap File is created before real file.
             if node is None:
                 self.log.debug(
                     "Found no corresponing file to swap %s with name %s", name, src_name)
-                node = self.nodes[self.__add_inode(src_name, parent_inode)]
-            return self.__getattr(self.__add_inode(name, parent_inode, data=node.get_data()))
+                node = self.nodes[self.nodes.add_inode(
+                    src_name, parent_inode)]
+            return self.__getattr(self.nodes.add_inode(name, parent_inode, data=node.get_data()))
 
         # If no . and .. -> no existing inode -> create new one
         # if name != '.' and name != '..':
-            # return self.__getattr(self.__add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
+            # return self.__getattr(self.nodes.add_inode(self.__get_path(parent_inode, name.encode("utf-8"))))
         # new error
         # raise Exception("Lookup failed.")
         # raise pyfuse3.FUSEError(errno.ENOENT)
@@ -427,7 +323,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("whole flags: %d", flags)
             raise pyfuse3.FUSEError(errno.EPERM)
         '''
-        self.__try_increase_op_count(inode)
+        self.nodes.try_increase_op_count(inode)
         return pyfuse3.FileInfo(fh=inode)
 
     @wrapper
@@ -468,7 +364,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("Creating a swap file.")
         try:
             self.log.debug("Trying to get inode")
-            inode = self.__add_inode(name, parent_inode, mode=mode)
+            inode = self.nodes.add_inode(name, parent_inode, mode=mode)
             self.log.debug("Got inode %d", inode)
             attr = self.__getattr(inode)
             self.log.debug("got attributes for inode %d", inode)
@@ -549,7 +445,7 @@ class _FileSystem(pyfuse3.Operations):
         will be discarded because there is no corresponding client request.
         '''
         self.nodes[inode].unlock()
-        self.__try_decrease_op_count(inode)
+        self.nodes.try_decrease_op_count(inode)
 
     @wrapper
     async def unlink(self, parent_inode, name, ctx):
@@ -572,7 +468,7 @@ class _FileSystem(pyfuse3.Operations):
             associated with the inode either).
             '''
 
-        children = self.__get_children(parent_inode)
+        children = self.nodes.get_children(parent_inode)
         if len(children) == 0:
             self.log.warning(
                 "Found no children for parent_inode %d.", parent_inode)
@@ -602,7 +498,7 @@ class _FileSystem(pyfuse3.Operations):
         '''
 
         # TODO: Really decrease op count?
-        # self.__try_decrease_op_count(inode)
+        # self.try_decrease_op_count(inode)
 
     @wrapper
     async def forget(self, inode_list):
@@ -637,7 +533,7 @@ class _FileSystem(pyfuse3.Operations):
                 self.log.warning("Inode %d does not exist anymore.", inode)
                 pass
             finally:
-                self.__try_remove_inode(inode)
+                self.nodes.try_remove_inode(inode)
 
     @wrapper
     async def fsync(self, inode, datasync):
@@ -757,7 +653,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.debug("With mode: %s", mode)
 
         # TODO: implement mode behavior
-        inode = self.__add_inode(name, parent_inode, mode=mode)
+        inode = self.nodes.add_inode(name, parent_inode, mode=mode)
         return self.__getattr(inode)
 
     @wrapper
@@ -766,15 +662,15 @@ class _FileSystem(pyfuse3.Operations):
         self.log.info("mkdir: %s", name)
         self.log.info("----")
 
-        return self.__getattr(self.__add_inode(name, parent_inode,
-                                               node_type=Types.DIR, mode=mode))
+        return self.__getattr(self.nodes.add_inode(name, parent_inode,
+                                                   node_type=Types.DIR, mode=mode))
 
     @wrapper
     async def opendir(self, inode, ctx):
         self.log.info("----")
         self.log.info("opendir: %d", inode)
         self.log.info("----")
-        self.__try_increase_op_count(inode)
+        self.nodes.try_increase_op_count(inode)
         return inode
 
     @wrapper
@@ -785,7 +681,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.debug("start_id: %s", start_id)
         dir_path = self.nodes[inode].get_full_path()
         self.log.debug("dirpath: %s", dir_path)
-        arr = self.__get_children(inode)
+        arr = self.nodes.get_children(inode)
         self.log.debug("items in dir: %d", len(arr))
         try:
             for key in arr:
@@ -836,9 +732,9 @@ class _FileSystem(pyfuse3.Operations):
         try:
             self.log.debug("Getting childs of: %s",
                            self.nodes[parent_inode].get_name())
-            self.log.debug(self.__get_children(parent_inode))
+            self.log.debug(self.nodes.get_children(parent_inode))
 
-            filtered_list = [idx for idx in self.__get_children(
+            filtered_list = [idx for idx in self.nodes.get_children(
                 parent_inode) if self.nodes[idx].get_name() == name]
 
             self.log.debug("filtered list with name %s:", name)
@@ -866,7 +762,7 @@ class _FileSystem(pyfuse3.Operations):
         for it (until it is opened again with `opendir`).
         '''
         self.nodes[inode].unlock()
-        self.__try_decrease_op_count(inode)
+        self.nodes.try_decrease_op_count(inode)
 
     @wrapper
     async def fsyncdir(self, inode, datasync):
