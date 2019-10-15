@@ -37,4 +37,6 @@ def create_logger(name="corefs", debug=False, with_file=True):
     # https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
     logger.propagate = False
 
+    logger.info("Initialize Logger: %s", logger.name)
+
     return logger

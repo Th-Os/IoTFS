@@ -4,6 +4,7 @@ from corefs.filesystem.node import Node, File, Directory, Types, Encodings
 from corefs.utils import _logging
 
 # TODO test and refactor
+# READ: https://stackoverflow.com/questions/3387691/how-to-perfectly-override-a-dict
 
 ROOT_INODE = 1
 

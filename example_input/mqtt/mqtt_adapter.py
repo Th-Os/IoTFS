@@ -3,11 +3,14 @@ import os
 from corefs.input._adapter import Adapter
 from corefs.input.queries import CreateQuery, UpdateQuery, Types
 
+from corefs.utils import _logging
+
 
 class MQTT_Adapter(Adapter):
 
     def __init__(self, client):
         super().__init__(client)
+        self.log = _logging.create_logger("mqtt.adapter", True)
 
     def create(self, topic, msg):
         topics = topic.split("/")
