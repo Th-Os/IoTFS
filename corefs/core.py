@@ -1,4 +1,3 @@
-from argparse import ArgumentParser
 import concurrent.futures
 import os
 from queue import Queue

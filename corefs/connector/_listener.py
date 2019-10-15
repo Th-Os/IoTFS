@@ -1,5 +1,3 @@
-import time
-
 from corefs.utils import _logging
 
 

@@ -2,7 +2,6 @@ import paho.mqtt.client as mqtt
 import os
 
 import logging
-import time
 
 
 LOGGER = logging.getLogger(__name__)
