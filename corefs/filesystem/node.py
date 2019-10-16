@@ -1,6 +1,9 @@
 import os
-import pyfuse3
+import time
+import stat
 from enum import Enum
+
+import pyfuse3
 
 
 class Encodings(Enum):
@@ -16,15 +19,23 @@ class Types(Enum):
 
 class Node():
 
-    def __init__(self, name, path, mode, parent, file_type, attr, open_count):
-        self.set_name(name)
-        self.set_path(path)
+    def __init__(self, name, path, mode, parent, file_type, open_count):
+        self._name = name
+        self.path = path
         self.parent = parent
-        self.set_type(file_type)
-        self.set_attr(attr)
+        self.type = file_type
 
-        # TODO: Add mode
+        # Attributes
         self.mode = mode
+        self.size = None
+
+        self.uid = os.getuid()
+        self.gid = os.getgid()
+
+        stamp = int(time.time() * 1e9)
+        self.atime = stamp
+        self.mtime = stamp
+        self.ctime = stamp
 
         # Creating, opening, closing and removing a file, will result in open_count
         self.open_count = open_count
@@ -35,47 +46,37 @@ class Node():
         # If unlink or rmdir -> node needs to exist but ls mustn't show the item
         self.locked = False
 
-    def set_name(self, name):
-        self.name = os.fsencode(name)
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = os.fsencode(name)
 
     def get_name(self, encoding=Encodings.BYTE_ENCODING):
         if encoding == Encodings.BYTE_ENCODING:
-            return self.name
+            return self._name
         else:
-            return os.fsdecode(self.name)
-
-    def set_path(self, path):
-        self.path = path
-
-    def get_path(self):
-        return self.path
+            return os.fsdecode(self._name)
 
     def get_full_path(self):
         return self.path + self.get_name(encoding=Encodings.UTF_8_ENCODING)
 
-    def get_mode(self):
-        return self.mode
-
-    def set_parent(self, new_parent):
-        self.parent = new_parent
-
-    def get_parent(self):
-        return self.parent
-
-    def set_type(self, file_type):
-        self.type = file_type
-
-    def get_type(self):
-        return self.type
-
-    def set_attr(self, attr):
-        self.attr = attr
-
-    def get_attr(self):
-        return self.attr
+    def get_attr(self, inode):
+        entry = pyfuse3.EntryAttributes()
+        entry.st_mode = self.mode
+        entry.st_size = self.size
+        entry.st_atime_ns = self.atime
+        entry.st_ctime_ns = self.ctime
+        entry.st_mtime_ns = self.mtime
+        entry.st_gid = os.getgid()
+        entry.st_uid = os.getuid()
+        entry.st_ino = inode
+        return entry
 
     def has_attr(self):
-        return self.attr is not None
+        return self.size is not None
 
     def is_invisible(self):
         return self.invisible
@@ -88,9 +89,6 @@ class Node():
 
     def dec_open_count(self, amount=1):
         self.open_count -= amount
-
-    def get_open_count(self):
-        return self.open_count
 
     def unlock(self):
         self.locked = False
@@ -105,7 +103,7 @@ class Node():
         return {
             "name": self.name,
             "path": self.path,
-            "mode": self.mode,
+            "mode": oct(self.mode),
             "parent": self.parent,
             "type": self.type.name,
             "invisible": self.invisible,
@@ -115,43 +113,45 @@ class Node():
 
     def __repr__(self):
         return "Node(name: {0}, path: {1}, type: {2}, mode: {3}, invisible: {4}, open_count: {5}, lock: {6})".format(
-            self.name, self.path, self.type.name, self.mode, self.invisible, self.open_count, self.locked)
+            self.name, self.path, self.type.name, oct(self.mode), self.invisible, self.open_count, self.locked)
 
 
 class LockedNode():
 
     def __init__(self, node):
         self.name = node.get_name(encoding=Encodings.UTF_8_ENCODING)
-        self.path = node.get_path()
-        self.type = node.get_type().name
-        self.mode = node.get_mode()
-
-    def get_name(self):
-        return self.name
-
-    def get_path(self):
-        return self.path
-
-    def get_type(self):
-        return self.type
-
-    def get_mode(self):
-        return self.mode
+        self.path = node.path
+        self.type = node.type.name
+        self.mode = node.mode
+        self.size = node.size
+        self.uid = node.uid
+        self.gid = node.gid
+        self.atime = node.atime
+        self.mtime = node.mtime
+        self.ctime = node.ctime
 
 
 class File(Node):
 
-    def __init__(self, name, path, mode=7777, parent=0, data="", attr=None, unlink=False, open_count=0):
-        super().__init__(name, path, mode, parent, Types.FILE,
-                         attr=attr, open_count=open_count)
-        self.set_data(data)
+    def __init__(self, name, path, mode, parent=None, data="", unlink=False, open_count=0):
+        super().__init__(name, path, mode,
+                         parent, Types.FILE, open_count=open_count)
+        self.data = data
         if self.get_name(encoding=Encodings.UTF_8_ENCODING).endswith(".swp"):
-            self.set_type(Types.SWAP)
+            self.type = Types.SWAP
 
-    def set_data(self, data):
+        self.mode = self.mode | stat.S_IFREG
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data):
         if data is None:
             data = ""
-        self.data = os.fsencode(data)
+        self._data = os.fsencode(data)
+        self.size = self.get_data_size()
 
     def get_data(self, encoding=Encodings.BYTE_ENCODING):
         if encoding == Encodings.BYTE_ENCODING:
@@ -171,9 +171,8 @@ class File(Node):
     def __repr__(self):
         return "File(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
-            "mode: {0}, ".format(self.mode) +\
+            "mode: {0}, ".format(oct(self.mode)) +\
             "parent: {0}, ".format(self.parent) +\
-            "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type.name) +\
             "data: {0}, ".format(self.data) +\
             "open_count: {0}, ".format(self.open_count) +\
@@ -187,16 +186,14 @@ class LockedFile(LockedNode):
         super().__init__(node)
         self.data = node.get_data(encoding=Encodings.UTF_8_ENCODING)
 
-    def get_data(self):
-        return self.data
-
 
 class Directory(Node):
 
-    def __init__(self, name, path, mode=7777, parent=0, attr=None, unlink=False, root=False, open_count=0):
-        super().__init__(name, path, mode, parent, Types.DIR,
-                         attr=attr, open_count=open_count)
+    def __init__(self, name, path, mode, parent=None, unlink=False, root=False, open_count=0):
+        super().__init__(name, path, mode, parent, Types.DIR, open_count=open_count)
         self.root = root
+        self.mode = self.mode | stat.S_IFDIR
+        self.size = 0
 
     def is_root(self):
         return self.root
@@ -214,9 +211,8 @@ class Directory(Node):
     def __repr__(self):
         return "Directory(name: {0}, ".format(self.name) +\
             "path: {0}, ".format(self.path) +\
-            "mode: {0}, ".format(self.mode) +\
+            "mode: {0}, ".format(oct(self.mode)) +\
             "parent: {0}, ".format(self.parent) +\
-            "attr: {0}, ".format(self.attr) +\
             "type: {0}, ".format(self.type.name) +\
             "root: {0}, ".format(self.root) +\
             "open_count: {0}, ".format(self.open_count) +\
@@ -232,12 +228,3 @@ class LockedDirectory(LockedNode):
 
     def is_root(self):
         return self.root
-
-
-class EntryAttributes(pyfuse3.EntryAttributes):
-
-    def __init__(self):
-        super().__init__()
-
-    def __repr__(self):
-        return "EntryAttributes(st_ino: {0})".format(self.st_ino)

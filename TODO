@@ -20,7 +20,7 @@
     - access
     - mknod
     - Whole permission / mode handling
-- FS utility nodelist implementation
+- FS time attributes could need updating, when specific events arise
 - FS test functions:
     - mode (create, read, write, access) methods: create, mknode, mkdir, access
     - rename

@@ -83,9 +83,11 @@ def test_stat():
     os.close(fd)
     assert os.path.exists(file_path) is True
     _stat = os.stat(file_path)
-    LOGGER.info(_stat)
+    assert type(_stat) == os.stat_result
     _statvfs = os.statvfs(file_path)
-    LOGGER.info(_statvfs)
+    assert type(_statvfs) == os.statvfs_result
+    os.unlink(file_path)
+    assert os.path.exists(file_path) is False
 
 
 def test_mode():
@@ -93,4 +95,8 @@ def test_mode():
     fd = os.open(file_path, os.O_CREAT)
     os.close(fd)
     assert os.path.exists(file_path) is True
-    os.chmod(file_path, stat.S_IREAD)
+    _stat = os.stat(file_path)
+    LOGGER.info(stat.S_IWRITE)
+    LOGGER.info(_stat.st_mode)
+    os.chmod(file_path, stat.S_IWRITE)
+    LOGGER.info(_stat.st_mode)

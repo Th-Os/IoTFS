@@ -15,7 +15,7 @@ class NodeDict(dict):
         else:
             self.log = _logging.create_logger("NodeDict", debug=True)
 
-    def add_inode(self, name, parent_inode, node_type=Types.FILE, data="", mode=7777):
+    def add_inode(self, name, parent_inode, node_type=Types.FILE, data="", mode=0o754):
         path = self[parent_inode].get_full_path()
         self.log.info('__add_inode with path %s and name %s', path, name)
         if path[-1] != os.path.sep:
@@ -30,10 +30,10 @@ class NodeDict(dict):
                 "Create: inode %d, with path: %s, and name: %s", inode, path, name)
             if node_type == Types.FILE or node_type == Types.SWAP:
                 self[inode] = File(
-                    name, path, mode=mode, parent=parent_inode, data=data)
+                    name, path, mode, parent=parent_inode, data=data)
             else:
                 self[inode] = Directory(
-                    name, path, mode=mode, parent=parent_inode)
+                    name, path, mode, parent=parent_inode)
             self[inode].inc_open_count()
             self.log.debug(self)
         return inode
@@ -41,7 +41,7 @@ class NodeDict(dict):
     def try_remove_inode(self, inode):
         self.log.info("Trying to remove inode %d.", inode)
         try:
-            if self[inode].get_open_count() <= 1:
+            if self[inode].open_count <= 1:
                 self.log.debug("Removed inode %d", inode)
                 del self[inode]
             else:
@@ -53,10 +53,10 @@ class NodeDict(dict):
         self.log.warning("Trying to decrease op count of %d.", inode)
         try:
             self[inode].dec_open_count()
-            if self[inode].get_open_count() == 0:
+            if self[inode].open_count == 0:
                 self[inode].lock()
             self.log.warning("New op count: %d",
-                             self[inode].get_open_count())
+                             self[inode].open_count)
         except KeyError:
             self.log.error("No inode with key %d.", inode)
         except Exception as e:
@@ -75,7 +75,7 @@ class NodeDict(dict):
         if type(self[inode]) is not Directory:
             self.log.error("Inode %d is no directory.")
             raise NotADirectoryError("Inode %d is no directory.")
-        return [idx for idx in self if self[idx].get_parent() == inode]
+        return [idx for idx in self if self[idx].parent == inode]
 
     def get_node_by_name(self, name, array=None):
         if array is None:
