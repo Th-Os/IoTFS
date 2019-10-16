@@ -1,4 +1,5 @@
 import os
+import stat
 import logging
 
 ROOT_DIR = "dir"
@@ -74,3 +75,22 @@ def test_dir():
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_two")) is False
     assert os.path.isdir(os.path.join(
         ROOT_DIR, "dir_two", "dir_three")) is False
+
+
+def test_stat():
+    file_path = os.path.join(ROOT_DIR, 'file_four')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    assert os.path.exists(file_path) is True
+    _stat = os.stat(file_path)
+    LOGGER.info(_stat)
+    _statvfs = os.statvfs(file_path)
+    LOGGER.info(_statvfs)
+
+
+def test_mode():
+    file_path = os.path.join(ROOT_DIR, 'file_five')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    assert os.path.exists(file_path) is True
+    os.chmod(file_path, stat.S_IREAD)

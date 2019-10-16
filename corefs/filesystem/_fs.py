@@ -94,7 +94,6 @@ class _FileSystem(pyfuse3.Operations):
         else:
             entry = EntryAttributes()
             node = None
-            # TODO: Here is a fundamental error! somehow everything is freezing.
             try:
                 if inode in self.nodes:
                     self.log.info(
@@ -289,7 +288,6 @@ class _FileSystem(pyfuse3.Operations):
         '''
 
         # TODO: Add permission handling to nodes.
-        '''
         assert flags & os.O_CREAT == 0
         if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
             self.log.error("False permission.")
@@ -298,8 +296,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("read write: %d", flags & os.O_WRONLY)
             self.log.debug("append: %d", flags & os.O_APPEND)
             self.log.debug("whole flags: %d", flags)
-            raise pyfuse3.FUSEError(errno.EPERM)
-        '''
+            # raise pyfuse3.FUSEError(errno.EPERM)
         self.nodes.try_increase_op_count(inode)
         return pyfuse3.FileInfo(fh=inode)
 
@@ -570,7 +567,6 @@ class _FileSystem(pyfuse3.Operations):
         '''
         self.log.debug("With mode: %s", mode)
 
-        # TODO: implement mode behavior
         inode = self.nodes.add_inode(name, parent_inode, mode=mode)
         return self.__getattr(inode)
 
@@ -596,7 +592,6 @@ class _FileSystem(pyfuse3.Operations):
                 node = self.nodes[key]
                 self.log.debug("Key: %s, Value_name: %s", key, node.get_name())
 
-                # TODO: This could be problematic: < -> results in loop, <= results in false ls
                 if key <= start_id:
                     continue
 
@@ -701,7 +696,7 @@ class _FileSystem(pyfuse3.Operations):
 
         # TODO: Think about max size of filesystem
         stats.f_ffree = max(count, 200)
-        stats.favail = stats.f_ffree
+        stats.f_favail = stats.f_ffree
 
         return stats
 
