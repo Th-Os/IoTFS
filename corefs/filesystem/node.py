@@ -63,6 +63,9 @@ class Node():
     def get_full_path(self):
         return self.path + self.get_name(encoding=Encodings.UTF_8_ENCODING)
 
+    def get_permissions(self):
+        return stat.S_IMODE(self.mode)
+
     def get_attr(self, inode):
         entry = pyfuse3.EntryAttributes()
         entry.st_mode = self.mode

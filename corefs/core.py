@@ -24,15 +24,12 @@ class CoreFS():
         try:
             if not os.path.isdir(fs.mount_point):
                 os.mkdir(fs.mount_point)
-            FileSystemStarter(fs).start()
-            '''
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + len(listeners) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)
                 for adapter in adapters:
                     executor.submit(adapter.start)
                 for listener in listeners:
                     executor.submit(listener.start)
-            '''
 
         except (BaseException, Exception) as e:
             log.error(e)

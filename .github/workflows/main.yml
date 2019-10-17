@@ -170,6 +170,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip3 install -r requirements.txt
+          python3 -m pip install watchdog # only used for input_example
       - name: Install MQTT Broker
         run: |
           sudo apt-get install mosquitto

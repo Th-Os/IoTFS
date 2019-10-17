@@ -2,6 +2,8 @@ import logging
 from sys import stdout
 import os
 
+LOGGER_LIST = []
+
 
 def create_logger(name="corefs", debug=False, with_file=True):
     formatter = logging.Formatter('[%(name)s | %(threadName)s | %(asctime)s.%(msecs)03d] %(levelname)s: '
@@ -9,6 +11,9 @@ def create_logger(name="corefs", debug=False, with_file=True):
 
     logger = logging.getLogger(
         name) if name == "corefs" else logging.getLogger("corefs." + name)
+
+    if logger.name in LOGGER_LIST:
+        return logger
 
     if with_file:
         if os.path.isdir("logs") is False:
@@ -37,6 +42,7 @@ def create_logger(name="corefs", debug=False, with_file=True):
     # https://stackoverflow.com/questions/19561058/duplicate-output-in-simple-python-logging-configuration/19561320
     logger.propagate = False
 
+    LOGGER_LIST.append(logger.name)
     logger.info("Initialize Logger: %s", logger.name)
 
     return logger

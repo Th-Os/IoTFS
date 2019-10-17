@@ -21,6 +21,7 @@
     - mknod
     - Whole permission / mode handling
 - FS time attributes could need updating, when specific events arise
+- FS paths -> Path of pathlib
 - FS test functions:
     - mode (create, read, write, access) methods: create, mknode, mkdir, access
     - rename

@@ -3,9 +3,9 @@ from corefs.utils import _logging
 
 class Client():
 
-    def __init__(self, name):
+    def __init__(self, name, debug=False):
         self.name = name
-        self.log = _logging.create_logger(self.__class__.__name__, True)
+        self.log = _logging.create_logger(self.__class__.__name__, debug)
         self.log.info("Init %s", name)
         self.observers = dict()
 
@@ -25,8 +25,8 @@ class Client():
                 if cb == callback:
                     self.observers[event].remove(callback)
 
-    def notify(self, event, *args):
-        self.log.debug("Event (%d) with %s", event, args)
+    def notify(self, event, *args, **kwargs):
+        self.log.debug("Event ({0}) with {1}".format(event.name, args))
         if event in self.observers:
             for cb in self.observers[event]:
-                cb(*args)
+                cb(*args, **kwargs)

@@ -16,8 +16,7 @@ class MQTT_Adapter(Adapter):
         topics = topic.split("/")
         path = os.path.join(*topics[:-1])
         name = topics[-1]
-        CreateQuery(Types.DIRECTORIES, name, path,
-                    callback=self.on_create).start()
+        CreateQuery(Types.DIRECTORIES, name, path).start()
         directory = os.path.join(*topics)
         for key, value in msg.items():
             self.log.debug("Key: %s, value: %s", key, value)
@@ -34,8 +33,7 @@ class MQTT_Adapter(Adapter):
                 else:
                     self.log.debug("File doesn't exist. Creating file.")
                     self.log.debug("With content: %s", value)
-                    CreateQuery(Types.FILE, key, directory, value,
-                                callback=self.on_create).start()
+                    CreateQuery(Types.FILE, key, directory, data=value).start()
             except Exception as e:
                 self.log.error(e)
 
@@ -47,6 +45,3 @@ class MQTT_Adapter(Adapter):
 
     def delete(self, type, name, path):
         pass
-
-    def on_create(self, *args):
-        self.log.info("On CreateQuery")

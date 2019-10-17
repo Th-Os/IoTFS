@@ -50,13 +50,15 @@ class NodeDict(dict):
             self.log.warning("Inode %d doesn't exist.", inode)
 
     def try_decrease_op_count(self, inode):
-        self.log.warning("Trying to decrease op count of %d.", inode)
+        self.log.debug("Trying to decrease op count of %d.", inode)
         try:
             self[inode].dec_open_count()
-            if self[inode].open_count == 0:
+            if self[inode].is_invisible() and self[inode].open_count == 0:
                 self[inode].lock()
-            self.log.warning("New op count: %d",
-                             self[inode].open_count)
+            if self[inode].open_count < 0:
+                self[inode].lock()
+            self.log.debug("New op count: %d",
+                           self[inode].open_count)
         except KeyError:
             self.log.error("No inode with key %d.", inode)
         except Exception as e:

@@ -8,12 +8,11 @@ from corefs.input._adapter import Events
 
 class MQTT_Client(mqtt.Client, Client):
 
-    def __init__(self, entry_point, debug):
+    def __init__(self, debug=True):
         mqtt.Client.__init__(self, "Listener")
-        Client.__init__(self, "client.mqtt")
+        Client.__init__(self, "client.mqtt", debug)
         self.log.info("Starting Client \"%s\"",
                       self.__class__.__name__)
-        self.entry = os.path.join(".", entry_point)
 
     def on_connect(self, client, userdata, flags, rc):
         self.log.info("Connected with result code %s.", str(rc))
@@ -37,14 +36,6 @@ class MQTT_Client(mqtt.Client, Client):
 
         self.log.info("New message in topic: %s", msg.topic)
         self.log.debug("With payload: %s", payload)
-
-        # https://stackoverflow.com/questions/14826888/python-os-path-join-on-a-list
-        path = os.path.join(*msg.topic.split("/"))
-        directory = os.path.join(self.entry, path)
-        self.log.debug("Using directory: %s", directory)
-        self.log.debug("Abs path: %s", os.path.abspath(directory))
-
-        os.makedirs(os.path.abspath(directory), exist_ok=True)
 
         payload = json.loads(payload)
 

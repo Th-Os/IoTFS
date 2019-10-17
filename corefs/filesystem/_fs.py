@@ -92,29 +92,11 @@ class _FileSystem(pyfuse3.Operations):
             raise Exception("Didn't find inode in nodes.")
         node = self.nodes[inode]
 
-        '''
-        if inode in self.nodes and self.nodes[inode].has_attr():
-            self.log.info("inode %d has attribute", inode)
-            self.log.debug("current mode and size: %s, %i",
-                           oct(node.mode), node.size)
-        else:
-
-            if node.type == Types.DIR:
-                self.log.debug("This is a directory.")
-                node.mode = (stat.S_IFDIR | 0o754)
-                node.size = 0
-            elif node.type == Types.FILE or node.type == Types.SWAP:
-                self.log.debug("This is a file of type \"%s\".",
-                               node.type.name)
-                node.mode = (stat.S_IFREG | 0o754)
-                node.size = node.size
-                self.log.debug("size of file: %d", node.size)
-            else:
-                self.log.error("Found no corresponding type.")
-        '''
         entry = pyfuse3.EntryAttributes()
 
         entry.st_mode = node.mode
+        self.log.debug(oct(node.mode))
+        self.log.debug(oct(node.get_permissions()))
         entry.st_size = node.size
 
         entry.st_atime_ns = node.atime
@@ -156,25 +138,25 @@ class _FileSystem(pyfuse3.Operations):
             self.log.error("Inode %d not saved.", inode)
             raise Exception("Inode not found.")
         node = self.nodes[inode]
-        self.log.debug(fields)
         try:
             if fields.update_size:
                 node.size = attr.st_size
-
+                self.log.debug("new size: %d", node.size)
             if fields.update_mode:
                 node.mode = attr.st_mode
-
+                self.log.debug("new mode: %s", oct(node.mode))
             if fields.update_uid:
                 node.uid = attr.st_uid
-
+                self.log.debug("new uid: %d", node.uid)
             if fields.update_gid:
                 node.gid = attr.st_gid
-
+                self.log.debug("new gid: %d", node.gid)
             if fields.update_atime:
                 node.atime = attr.st_atime_ns
+                self.log.debug("new atime: %d", node.atime)
             if fields.update_mtime:
                 node.mtime = attr.st_mtime_ns
-
+                self.log.debug("new mtime: %d", node.mtime)
             node.ctime = int(time.time() * 1e9)
             self.nodes[inode] = node
 
@@ -193,6 +175,22 @@ class _FileSystem(pyfuse3.Operations):
         (``\\0``).
         '''
         pass
+
+    '''
+    unique: 432, opcode: GETXATTR (22), nodeid: 2, insize: 65, pid: 12455
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.454] INFO: unique: 400, operation: getxattr
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.454] DEBUG: ---
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] DEBUG: getxattr: 2, b'security.selinux'
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] DEBUG: ---
+    unique: 432, error: -61 (No data available), outsize: 16
+    unique: 434, opcode: GETXATTR (22), nodeid: 2, insize: 72, pid: 12455
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] INFO: unique: 400, operation: getxattr
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] DEBUG: ---
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] DEBUG: getxattr: 2, b'system.posix_acl_access'
+    [corefs.StandardFileSystem | MainThread | 2019-10-16 23:25:23.455] DEBUG: ---
+   unique: 434, error: -61 (No data available), outsize: 16
+
+    '''
 
     @wrapper(1, 2)
     async def getxattr(self, inode, name, ctx):
@@ -238,8 +236,8 @@ class _FileSystem(pyfuse3.Operations):
                 else:
                     return self.__getattr(inode)
         self.log.debug("Couldn't find inode. Is it a swap file?")
-        self.log.debug("swp? %s", name[-4:])
-        if name[-4:] == ".swp":
+
+        if len(name) > 4 and name[-4:] == ".swp":
             self.log.debug("Found .swp")
 
             # Name of source file: .x.swp -> x
@@ -254,8 +252,13 @@ class _FileSystem(pyfuse3.Operations):
                     src_name, parent_inode)]
             return self.__getattr(self.nodes.add_inode(name, parent_inode, data=node.get_data()))
 
+        # raise FUSEError(errno.ENOENT)
+
+        self.log.warning(
+            "No swap file either. Returning empty EntryAttributs with timeout.")
         attr = pyfuse3.EntryAttributes()
         attr.st_ino = 0
+        attr.entry_timeout = 5
 
         return attr
 
@@ -281,7 +284,7 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("read only: %d", flags & os.O_RDONLY)
             self.log.debug("read write: %d", flags & os.O_WRONLY)
             self.log.debug("append: %d", flags & os.O_APPEND)
-            self.log.debug("whole flags: %d", flags)
+            self.log.debug("whole flags: %s", oct(flags))
             # raise pyfuse3.FUSEError(errno.EPERM)
         self.nodes.try_increase_op_count(inode)
         return pyfuse3.FileInfo(fh=inode)
@@ -347,7 +350,6 @@ class _FileSystem(pyfuse3.Operations):
             self.log.debug("buffer: %s", buffer)
             output = data[:off] + buffer + data[off:]
             self.log.debug("output: %s", output)
-            self.log.debug("current data: %s", self.nodes[inode].get_data())
             self.nodes[inode].data = output
         except KeyError:
             self.log.warning("Inode %d does not exist.", inode)
@@ -412,8 +414,10 @@ class _FileSystem(pyfuse3.Operations):
             try:
                 if self.nodes[inode].get_name() == name:
                     self.log.info("Lock inode: %d", inode)
+                    self.log.info("open_count: %d",
+                                  self.nodes[inode].open_count)
                     self.nodes[inode].set_invisible()
-                    if self.nodes[inode].open_count == 1:
+                    if self.nodes[inode].open_count <= 1:
                         self.nodes[inode].lock()
             except KeyError:
                 self.log.warning("Inode %d does not exist.", inode)
@@ -517,8 +521,13 @@ class _FileSystem(pyfuse3.Operations):
 
         entry_old = await self.lookup(parent_inode_old, name_old)
 
+        self.log.info(entry_old)
         self.nodes[entry_old.st_ino].parent = parent_inode_new
         self.nodes[entry_old.st_ino].name = name_new
+        self.log.info("parent inodes from %d to %d",
+                      parent_inode_old, parent_inode_new)
+        self.log.info("name from %s to %s", name_old, name_new)
+        self.log.info("flags %d", flags)
 
     @wrapper(1, 3)
     async def link(self, inode, new_parent_inode, new_name, ctx):
@@ -632,7 +641,7 @@ class _FileSystem(pyfuse3.Operations):
 
             # Forget path for readdir. But it will be accessible via getattr, if lookup_count > 1.
             self.nodes[inode].set_invisible()
-            if self.nodes[inode].get_open_count() == 1:
+            if self.nodes[inode].open_count <= 1:
                 self.nodes[inode].lock()
         except Exception as e:
             self.log.error(e)

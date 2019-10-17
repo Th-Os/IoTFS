@@ -7,6 +7,9 @@ from corefs.filesystem.standard_fs import StandardFileSystem
 from mqtt.mqtt_client import MQTT_Client
 from mqtt.mqtt_adapter import MQTT_Adapter
 
+from fs.fs_client import FS_Client
+from fs.fs_adapter import FS_Adapter
+
 
 def parse_args():
     '''Parse command line'''
@@ -24,8 +27,10 @@ def main():
     options = parse_args()
 
     fs = StandardFileSystem(options.mountpoint, debug=options.debug)
-    mqtt = MQTT_Client(options.mountpoint, options.debug)
-    adapters = [MQTT_Adapter(mqtt)]
+
+    mqtt = MQTT_Client(options.debug)
+    fs_client = FS_Client(options.debug)
+    adapters = [MQTT_Adapter(mqtt), FS_Adapter(fs_client)]
 
     CoreFS(fs, adapters=adapters, debug=options.debug)
 

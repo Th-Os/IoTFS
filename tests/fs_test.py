@@ -4,6 +4,16 @@ import logging
 
 ROOT_DIR = "dir"
 LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+
+
+def test_path_exists():
+    file_path = os.path.join(ROOT_DIR, 'file_zero')
+    open(file_path, "w+").close()
+    assert os.path.exists(file_path)
+    LOGGER.debug(os.lstat(file_path))
+    os.unlink(file_path)
+    assert not os.path.exists(file_path)
 
 
 def test_file():
@@ -96,7 +106,18 @@ def test_mode():
     os.close(fd)
     assert os.path.exists(file_path) is True
     _stat = os.stat(file_path)
-    LOGGER.info(stat.S_IWRITE)
-    LOGGER.info(_stat.st_mode)
+    LOGGER.debug(stat.S_IWRITE)
+    LOGGER.debug(oct(_stat.st_mode))
     os.chmod(file_path, stat.S_IWRITE)
-    LOGGER.info(_stat.st_mode)
+    _stat = os.stat(file_path)
+    LOGGER.debug(oct(_stat.st_mode))
+    os.unlink(file_path)
+
+
+def test_rename():
+    file_path = os.path.join(ROOT_DIR, 'file_six')
+    renamed_file_path = os.path.join(ROOT_DIR, 'file_renamed')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    os.rename(file_path, renamed_file_path)
+    assert os.path.exists(renamed_file_path) is True
