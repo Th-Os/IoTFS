@@ -121,3 +121,27 @@ def test_rename():
     os.close(fd)
     os.rename(file_path, renamed_file_path)
     assert os.path.exists(renamed_file_path) is True
+
+
+def test_symlink():
+    file_path = os.path.join(ROOT_DIR, 'file_seven')
+    dest = file_path + "_linked"
+    open(file_path, "x").close()
+    os.symlink(file_path, dest)
+    os.path.islink(dest)
+    os.unlink(file_path)
+    os.unlink(file_path)
+    assert os.path.exists(file_path) is False
+    assert os.path.exists(dest) is False
+
+
+def test_link():
+    file_path = os.path.join(ROOT_DIR, 'file_eight')
+    dest = file_path + "_linked"
+    open(file_path, "x").close()
+    os.ink(file_path, dest)
+    os.path.islink(dest)
+    os.unlink(file_path)
+    os.unlink(file_path)
+    assert os.path.exists(file_path) is False
+    assert os.path.exists(dest) is False
