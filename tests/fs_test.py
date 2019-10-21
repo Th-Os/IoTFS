@@ -1,8 +1,19 @@
 import os
+import stat
 import logging
 
 ROOT_DIR = "dir"
 LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+
+
+def test_path_exists():
+    file_path = os.path.join(ROOT_DIR, 'file_zero')
+    open(file_path, "w+").close()
+    assert os.path.exists(file_path)
+    LOGGER.debug(os.lstat(file_path))
+    os.unlink(file_path)
+    assert not os.path.exists(file_path)
 
 
 def test_file():
@@ -10,7 +21,6 @@ def test_file():
     This code should run successfully.
     https://www.rath.org/pyfuse3-docs/gotchas.html
     '''
-    # test_file: FileNotFoundError when executing a second time. Why?
     file_path = os.path.join(ROOT_DIR, 'file_one')
     assert os.path.exists(file_path) is False
     with open(file_path, 'w+') as fh1:
@@ -40,7 +50,6 @@ def test_file_abs():
         fh1.seek(0)
         assert fh1.read() == "foobar"
     assert os.path.exists(file_path) is False
-    # os.remove(file_path)
 
 
 def test_file_std():
@@ -76,3 +85,39 @@ def test_dir():
     assert os.path.isdir(os.path.join(ROOT_DIR, "dir_two")) is False
     assert os.path.isdir(os.path.join(
         ROOT_DIR, "dir_two", "dir_three")) is False
+
+
+def test_stat():
+    file_path = os.path.join(ROOT_DIR, 'file_four')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    assert os.path.exists(file_path) is True
+    _stat = os.stat(file_path)
+    assert type(_stat) == os.stat_result
+    _statvfs = os.statvfs(file_path)
+    assert type(_statvfs) == os.statvfs_result
+    os.unlink(file_path)
+    assert os.path.exists(file_path) is False
+
+
+def test_mode():
+    file_path = os.path.join(ROOT_DIR, 'file_five')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    assert os.path.exists(file_path) is True
+    _stat = os.stat(file_path)
+    LOGGER.debug(stat.S_IWRITE)
+    LOGGER.debug(oct(_stat.st_mode))
+    os.chmod(file_path, stat.S_IWRITE)
+    _stat = os.stat(file_path)
+    LOGGER.debug(oct(_stat.st_mode))
+    os.unlink(file_path)
+
+
+def test_rename():
+    file_path = os.path.join(ROOT_DIR, 'file_six')
+    renamed_file_path = os.path.join(ROOT_DIR, 'file_renamed')
+    fd = os.open(file_path, os.O_CREAT)
+    os.close(fd)
+    os.rename(file_path, renamed_file_path)
+    assert os.path.exists(renamed_file_path) is True

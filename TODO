@@ -1,0 +1,41 @@
+- Implementing Adapter
+    - add errors
+    - write tests for queries.py
+- Implementing Connector
+    - test listener
+- Drawing hourglass model for corefs
+- FS functions to implement (ordered by importance from bottom to top):
+    - removexattr
+    - listxattr
+    - setxattr
+    - getxattr
+    - fsyncdir
+    - fsync
+    - flush -> Needs Implementing
+    - readlink -> Implementing
+    - link -> Implementing
+    - symlink -> Implementing
+    - access -> Testing
+    - mknod -> Testing
+    - Whole permission / mode handling -> Testing
+- FS time attributes could need updating, when specific events arise
+- FS test functions:
+    - mode (create, read, write, access) methods: create, mknode, mkdir, access
+    - rename
+    - link
+    - flush
+
+
+
+Errors:
+- assert is_file in mqtt_test test_msg is sometimes failing.
+- assert is_dir in mqtt_test test_topic is sometimes failing.
+- 22 Readdir calls at the beginning of each session. -> listening process is disturbed
+
+
+Implementing Links
+
+2 Variants:
+
+- Extend nodes
+- Implement "entries" that connect to inode

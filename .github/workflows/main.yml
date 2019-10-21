@@ -1,4 +1,4 @@
-name: IoTFS
+name: CoreFS
 
 on:
   pull_request:
@@ -9,40 +9,23 @@ on:
       - master
       - dev
       - test_actions
-
+env:
+  FUSE_VERSION: 3.7.0
 jobs:
-  build:
+  lint: # install, lint, test, build
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
     runs-on: ubuntu-latest
-
     steps:
-      - name: Set up Python 3.7
+      - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
         with:
-          python-version: 3.7
+          python-version: ${{ matrix.python }}
       - name: Upgrading pip
-        run: python -m pip install --upgrade pip
-      - name: Installing fuse 3.7 # Create new action for this -> with statement
-        env: 
-          FUSE_VERSION: 3.7.0
-        run: |
-          sudo apt-get install ninja-build
-          wget https://github.com/libfuse/libfuse/releases/download/fuse-$FUSE_VERSION/fuse-$FUSE_VERSION.tar.xz
-          pip install meson
-          tar xf fuse-$FUSE_VERSION.tar.xz
-          cd fuse-$FUSE_VERSION; mkdir build; cd build; meson ..; ninja; sudo ninja install
-          ls /usr/local/lib
-          ls /lib
-          sudo ln -s /usr/local/lib/x86_64-linux-gnu/libfuse3.so.$FUSE_VERSION /lib/x86_64-linux-gnu/libfuse3.so.3
-      - name: Install MQTT Broker
-        run: |
-          sudo apt-get install mosquitto
-          echo `service mosquitto status`
-      - name: Checkout IoTFS
+        run: python3 -m pip install --upgrade pip
+      - name: Checkout CoreFS
         uses: actions/checkout@master
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Check Directories # Only for testing purpose
-        run: cd ..; ls;
       - name: Lint with flake8
         run: |
           pip install flake8
@@ -50,17 +33,218 @@ jobs:
           flake8 ./src --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.
           flake8 ./src --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+  build:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --upgrade setuptools wheel
+      - name: Build Package
+        run: |
+          python3 setup.py sdist bdist_wheel
+      - name: Upload Archive
+        uses: actions/upload-artifact@master
+        with:
+          name: package
+          path: dist
+  install_and_test:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Upgrading pip
+        run: python3 -m pip install --upgrade pip
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
+      - name: Install dependencies
+        run: pip3 install -r requirements.txt
+      - name: Lookup
+        run: |
+          echo "$PYTHONPATH"
       - name: Start Application
         run: |
-          nohup python3 -u ./src/main.py dir --debug-fuse --debug &
+          nohup python3 -u ./start.py dir --debug &
           echo $! > app.pid
       - name: Application Status Before Test
         run: |
           cat logs/*.log
-      - name: Test with pytest
+      - name: Run Basic Tests with pytest
         run: |
-          pip install pytest
-          pytest
+          pip3 install pytest
+          pytest --ignore tests/advanced
+      - name: Read Logs
+        run: |
+          cat logs/*.log
+      - name: Stop Application
+        run: |
+          kill `cat app.pid` # kill resulting PID
+          sudo umount dir
+  test_app:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: dist
+      - name: Lookup Archive
+        run: ls
+      - name: Install Package
+        run: |
+          pip3 install ./dist/*.tar.gz
+      - name: Start Application
+        run: |
+          nohup python3 -u ./example_app/app.py dir --debug &
+          echo $! > app.pid
+      - name: Application Status Before Test
+        run: |
+          cat logs/*.log
+      - name: Run Tests with pytest
+        run: |
+          pip3 install pytest
+          pytest --ignore tests/advanced
+      - name: Read Logs
+        run: |
+          cat logs/*.log
+      - name: Stop Application
+        run: |
+          kill `cat app.pid` # kill resulting PID
+          sudo umount dir
+  test_input:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+          python3 -m pip install watchdog # only used for input_example
+      - name: Install MQTT Broker
+        run: |
+          sudo apt-get install mosquitto
+          echo `service mosquitto status`
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: dist
+      - name: Lookup Archive
+        run: ls
+      - name: Install Package
+        run: |
+          pip3 install ./dist/*.tar.gz
+      - name: Start Application
+        run: |
+          nohup python3 -u ./example_input/app.py dir --debug &
+          echo $! > app.pid
+      - name: Application Status Before Test
+        run: |
+          cat logs/*.log
+      - name: Run Tests with pytest
+        run: |
+          pip3 install pytest pytest-custom_exit_code
+          pytest --suppress-tests-failed-exit-code tests/advanced/input # option to get logs in next step
+      - name: Read Logs
+        run: |
+          cat logs/*.log
+      - name: Stop Application
+        run: |
+          kill `cat app.pid` # kill resulting PID
+          sudo umount dir
+  test_output:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: dist
+      - name: Lookup Archive
+        run: ls
+      - name: Install Package
+        run: |
+          pip3 install ./dist/*.tar.gz
+      - name: Start Application
+        run: |
+          nohup python3 -u ./example_output/app.py dir --debug &
+          echo $! > app.pid
+      - name: Application Status Before Test
+        run: |
+          cat logs/*.log
+      - name: Run Basic Tests with pytest
+        run: |
+          pip3 install pytest
+          pytest tests/advanced/output
       - name: Read Logs
         run: |
           cat logs/*.log
