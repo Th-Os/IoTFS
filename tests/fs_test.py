@@ -121,6 +121,10 @@ def test_rename():
     os.close(fd)
     os.rename(file_path, renamed_file_path)
     assert os.path.exists(renamed_file_path) is True
+    os.unlink(renamed_file_path)
+
+
+""" Not implemented yet.
 
 
 def test_symlink():
@@ -145,3 +149,4 @@ def test_link():
     os.unlink(file_path)
     assert os.path.exists(file_path) is False
     assert os.path.exists(dest) is False
+"""
