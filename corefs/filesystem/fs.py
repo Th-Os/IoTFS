@@ -11,6 +11,20 @@ from corefs.utils import _logging
 
 class FileSystem(_FileSystem):
 
+    """
+    FileSystem is the base class for every filesystem and inherits its functionality of a with pyfuse3 implemented corefs.filesystem._fs._FileSystem.
+
+    ...
+
+    Attributes
+    ----------
+    mount_point : str
+        path of mountpoint
+    debug : bool, optional
+        this defines whether the logging output should include the debug level
+
+    """
+
     def __init__(self, mount_point, debug=False):
         super().__init__(mount_point, debug)
         self.debug = debug
@@ -46,13 +60,51 @@ class FileSystem(_FileSystem):
 
 class FileSystemStarter():
 
+    """
+    FileSystemStarter starts a class inheriting FileSystem with trio.
+
+    ...
+
+    Attributes
+    ----------
+    fs : corefs.filesystem.fs.FileSystem
+        a filesystem object inheriting from FileSystem
+
+
+    Methods
+    -------
+    start()
+        starts a pyfuse3 filesystem with different options
+
+    Raises
+    ------
+    Exception
+        If fs is no instance of FileSystem, this error will be raised.
+
+    """
+
     def __init__(self, fs):
+        """
+        Parameters
+        ----------
+        fs : corefs.filesystem.fs.FileSystem
+            a filesystem object inheriting from FileSystem
+        """
+
         self.log = _logging.create_logger(self.__class__.__name__)
         if not isinstance(fs, FileSystem):
-            self.log.error("Parameter is no Filesystem.")
+            raise Exception("Parameter is no Filesystem.")
         self.fs = fs
 
     def start(self):
+        """Starts a pyfuse3 filesystem with different options.
+
+        Raises
+        ------
+        FUSEError
+            If a FUSEError occurs it will close the pyfuse3 filesystem
+        """
+
         fuse_log = _logging.create_logger("pyfuse3", self.fs.debug)
         fuse_options = set(pyfuse3.default_options)
         fuse_options.add('fsname=' + self.fs.__class__.__name__)
