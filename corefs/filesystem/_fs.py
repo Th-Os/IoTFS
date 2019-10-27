@@ -244,15 +244,20 @@ class _FileSystem(pyfuse3.Operations):
 
             # Name of source file: .x.swp -> x
             src_name = name[1:-4]
-            node = self.data.get_node_by_name(src_name)
+            src_entry = None
+            for entry in children:
+                if entry.get_name(encoding=Encodings.UTF_8_ENCODING) == src_name:
+                    src_entry = entry
+                    break
 
             # Case: Swap File is created before real file.
-            if node is None:
+            if src_entry is None:
                 self.log.debug(
                     "Found no corresponing file to swap %s with name %s", name, src_name)
-                node = self.data.nodes[self.data.add_inode(
-                    src_name, parent_inode)]
-            return self.__getattr(self.data.add_inode(name, parent_inode, data=node.get_data()))
+                src_entry = self.data.add_entry(src_name, parent_inode)
+                swap_entry = self.data.add_entry(
+                    name, parent_inode, data=self.data.nodes[src_entry.inode].data)
+            return self.__getattr(src_entry.inode)
 
         self.log.warning(
             "No swap file either. Returning empty EntryAttributs with timeout.")

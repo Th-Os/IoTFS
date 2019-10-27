@@ -7,10 +7,8 @@ from corefs.filesystem.entry import Entry, SymbolicEntry, HardlinkEntry
 from corefs.filesystem.node_dict import NodeDict
 from corefs.filesystem.entry_dict import EntryDict
 
-from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE
+from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE, STANDARD_MODE
 from corefs.utils import _logging
-
-ROOT_INODE = 1
 
 
 class Data():
@@ -26,7 +24,7 @@ class Data():
         self.inode_entries_map = dict()
         self.inode_unique_count = 0
 
-    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=0o754, link_type=None, link_path=None):
+    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, link_type=None, link_path=None):
         parent_entry = self.get_entry(parent_inode)
         path = parent_entry.get_full_path()
         entry = None
@@ -43,7 +41,7 @@ class Data():
         self.inode_entries_map[inode].append(entry)
         return entry
 
-    def add_link_entry(self, name, parent_inode, link_type, mode=0o754, link_path=None, target_inode=None):
+    def add_link_entry(self, name, parent_inode, link_type, mode=STANDARD_MODE, link_path=None, target_inode=None):
         parent_entry = self.get_entry(parent_inode)
         path = parent_entry.get_full_path()
         entry = None
@@ -94,7 +92,7 @@ class Data():
         self.inode_entries_map[inode].append(entry)
         return entry
 
-    def add_root_entry(self, name, mode=0o754):
+    def add_root_entry(self, name, mode=STANDARD_MODE):
         self.log.debug("Adding root entry.")
         path = os.sep
         self.log.debug(name)
@@ -105,7 +103,7 @@ class Data():
         self.inode_entries_map[ROOT_INODE] = [entry]
         self.inode_unique_count += 1
 
-    def __add_inode(self, parent_inode, node_type=Types.FILE, data="", mode=0o754):
+    def __add_inode(self, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE):
         if len(self.nodes) == 0:
             self.log.error("No root inode in nodes?")
             inode = 2
