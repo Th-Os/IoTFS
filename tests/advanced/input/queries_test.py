@@ -8,6 +8,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 ROOT_DIR = os.path.abspath("dir")
 
+"""
 
 def test_init():
     assert os.path.exists(INPUT_PATH)
@@ -116,3 +117,4 @@ def test_delete_multiple_dirs():
     with open(INPUT_PATH, "r") as f:
         assert "" == f.read()
 '''
+"""

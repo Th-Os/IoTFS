@@ -5,23 +5,12 @@ from enum import Enum
 
 import pyfuse3
 
-
-class Encodings(Enum):
-    BYTE_ENCODING = 0  # filesystem encoding
-    UTF_8_ENCODING = 1
-
-
-class Types(Enum):
-    FILE = 0
-    DIR = 1
-    SWAP = 2
+from corefs.utils._fs_utils import Encodings, Types
 
 
 class Node():
 
-    def __init__(self, name, path, mode, parent, file_type, open_count):
-        self._name = name
-        self.path = path
+    def __init__(self, mode, parent, file_type, open_count):
         self.parent = parent
         self.type = file_type
 
@@ -46,26 +35,12 @@ class Node():
         # If unlink or rmdir -> node needs to exist but ls mustn't show the item
         self.locked = False
 
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self._name = os.fsencode(name)
-
-    def get_name(self, encoding=Encodings.BYTE_ENCODING):
-        if encoding == Encodings.BYTE_ENCODING:
-            return self._name
-        else:
-            return os.fsdecode(self._name)
-
-    def get_full_path(self):
-        return self.path + self.get_name(encoding=Encodings.UTF_8_ENCODING)
+        self.xattr = dict()
 
     def get_permissions(self):
         return stat.S_IMODE(self.mode)
 
+    # TODO: not used=?
     def get_attr(self, inode):
         entry = pyfuse3.EntryAttributes()
         entry.st_mode = self.mode
@@ -104,11 +79,7 @@ class Node():
 
     def to_dict(self):
         return {
-            "name": self.name,
-            "path": self.path,
             "mode": oct(self.mode),
-            "parent": self.parent,
-            "type": self.type.name,
             "invisible": self.invisible,
             "open_count": self.open_count,
             "lock": self.locked
@@ -136,13 +107,9 @@ class LockedNode():
 
 class File(Node):
 
-    def __init__(self, name, path, mode, parent=None, data="", unlink=False, open_count=0):
-        super().__init__(name, path, mode,
-                         parent, Types.FILE, open_count=open_count)
+    def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
+        super().__init__(mode, parent, Types.FILE, open_count=open_count)
         self.data = data
-        if self.get_name(encoding=Encodings.UTF_8_ENCODING).endswith(".swp"):
-            self.type = Types.SWAP
-
         self.mode = self.mode | stat.S_IFREG
 
     @property
@@ -172,11 +139,7 @@ class File(Node):
         }
 
     def __repr__(self):
-        return "File(name: {0}, ".format(self.name) +\
-            "path: {0}, ".format(self.path) +\
-            "mode: {0}, ".format(oct(self.mode)) +\
-            "parent: {0}, ".format(self.parent) +\
-            "type: {0}, ".format(self.type.name) +\
+        return "File(mode: {0}, ".format(oct(self.mode)) +\
             "data: {0}, ".format(self.data) +\
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\
@@ -192,8 +155,8 @@ class LockedFile(LockedNode):
 
 class Directory(Node):
 
-    def __init__(self, name, path, mode, parent=None, unlink=False, root=False, open_count=0):
-        super().__init__(name, path, mode, parent, Types.DIR, open_count=open_count)
+    def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0):
+        super().__init__(mode, parent, Types.DIR, open_count=open_count)
         self.root = root
         self.mode = self.mode | stat.S_IFDIR
         self.size = 0
@@ -201,22 +164,14 @@ class Directory(Node):
     def is_root(self):
         return self.root
 
-    def get_full_path(self):
-        if self.is_root():
-            return self.path + os.sep
-        return self.path + self.get_name(encoding=Encodings.UTF_8_ENCODING)
-
     def to_dict(self):
         return {
-            **super().to_dict()
+            **super().to_dict(),
+            "root": self.root
         }
 
     def __repr__(self):
-        return "Directory(name: {0}, ".format(self.name) +\
-            "path: {0}, ".format(self.path) +\
-            "mode: {0}, ".format(oct(self.mode)) +\
-            "parent: {0}, ".format(self.parent) +\
-            "type: {0}, ".format(self.type.name) +\
+        return "Directory(mode: {0}, ".format(oct(self.mode)) +\
             "root: {0}, ".format(self.root) +\
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\

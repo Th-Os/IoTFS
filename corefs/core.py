@@ -10,7 +10,38 @@ from corefs.utils import _logging
 
 class CoreFS():
 
+    """
+    CoreFS initiates a FUSE filesystem with the given attributes.
+
+    ...
+
+    Attributes
+    ----------
+    fs : corefs.filesystem.fs.FileSystem
+        a filesystem object inheriting from FileSystem
+    adapters : list
+        input adapters inheriting corefs.input._adapter.Adapter that define the way data flows into the filesystem
+    listeners : list
+        listeners inheriting corefs.input._listener.Listener that define listening processes
+    debug : bool, optional
+        this defines whether the logging output should include the debug level
+
+    """
+
     def __init__(self, fs, adapters=[], listeners=[], debug=False):
+        """
+        Parameters
+        ----------
+        fs : corefs.filesystem.fs.FileSystem
+            a filesystem object inheriting from FileSystem
+        adapters : list
+            input adapters inheriting corefs.input._adapter.Adapter that define the way data flows into the filesystem
+        listeners : list
+            listeners inheriting corefs.input._listener.Listener that define listening processes
+        debug : bool, optional
+            this defines whether the logging output should include the debug level
+        """
+
         log = _logging.create_logger(debug=debug)
         log.info("Starting application.")
         os.environ["MOUNT_POINT"] = os.path.abspath(fs.mount_point)

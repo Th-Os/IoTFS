@@ -19,7 +19,7 @@ def test_path_exists():
 def test_file():
     '''
     This code should run successfully.
-    https://www.rath.org/pyfuse3-docs/gotchas.html
+    https: // www.rath.org/pyfuse3-docs/gotchas.html
     '''
     file_path = os.path.join(ROOT_DIR, 'file_one')
     assert os.path.exists(file_path) is False
@@ -121,3 +121,37 @@ def test_rename():
     os.close(fd)
     os.rename(file_path, renamed_file_path)
     assert os.path.exists(renamed_file_path) is True
+    os.unlink(renamed_file_path)
+
+
+""" Not implemented yet.
+
+
+def test_symlink():
+    dir_path = os.path.join(ROOT_DIR, 'a_dir')
+    os.mkdir(dir_path)
+    file_path = os.path.join(ROOT_DIR, 'a_dir', 'file_seven')
+    dest = file_path + "_linked"
+    open(file_path, "x").close()
+    assert os.path.exists(file_path)
+    os.symlink(file_path, dest)
+    assert os.path.islink(dest)
+    assert os.path.exists(file_path)
+    assert os.path.exists(dest)
+    os.unlink(file_path)
+    os.unlink(dest)
+    os.rmdir(dir_path)
+    assert os.path.exists(file_path) is False
+    assert os.path.exists(dest) is False
+
+
+def test_link():
+    file_path = os.path.join(ROOT_DIR, 'file_eight')
+    dest = file_path + "_linked"
+    open(file_path, "x").close()
+    os.link(file_path, dest)
+    os.unlink(file_path)
+    os.unlink(dest)
+    assert os.path.exists(file_path) is False
+    assert os.path.exists(dest) is False
+"""

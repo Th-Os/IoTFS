@@ -1,3 +1,2 @@
-paho_mqtt==1.4.0
 pyfuse3==2.0.0
 trio==0.12.1
