@@ -1,7 +1,8 @@
-import paho.mqtt.client as mqtt
 import os
-
+import time
 import logging
+
+import paho.mqtt.client as mqtt
 
 
 LOGGER = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ def on_connect(client, userdata, flags, rc):
 
 
 def test_topic():
+    time.sleep(2)
     LOGGER.info("test_topic start")
     LOGGER.info(os.listdir(ROOT_DIR))
     LOGGER.info("Path: %s", os.path.join(ROOT_DIR, "topic"))
@@ -35,12 +37,18 @@ def test_topic():
 
 
 def test_msg():
+    time.sleep(2)
     LOGGER.info("test_msg start")
     file_path = os.path.join(ROOT_DIR, "topic", "test", "msg")
-    # TODO: Sometimes failing. But don't know why. Observe.
-    assert os.path.isfile(file_path)
-    with open(file_path) as f:
+    assert os.path.exists(file_path)
+    with open(file_path, "r") as f:
         out = f.read()
         assert out == "test"
         LOGGER.info("output: %s", out)
     LOGGER.info("test_msg end")
+
+
+def test_finish():
+    time.sleep(3)
+    os.unlink(os.path.join(ROOT_DIR, "topic", "test", "msg"))
+    os.removedirs(os.path.join(ROOT_DIR, "topic"))

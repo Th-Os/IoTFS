@@ -116,13 +116,14 @@ class FileSystemStarter():
         except FUSEError:
             fuse_log.warning("FUSEError occured")
             pyfuse3.close(unmount=False)
-        except BaseException as be:
-            fuse_log.warning(be.args)
-            fuse_log.warning("BaseException occured")
-            pyfuse3.close(unmount=False)
         except Exception as e:
-            fuse_log.warning(e.args)
-            fuse_log.warning("Exception occured")
+            fuse_log.error("[%s]: %s", type(e).__name__, e)
+            pyfuse3.close(unmount=False)
+        except BaseException as be:
+            # TODO: Is this even needed?
+            fuse_log.error(be.__name__)
+            fuse_log.error(be.args)
+            fuse_log.error("BaseException occured")
             pyfuse3.close(unmount=False)
         finally:
             pyfuse3.close()
