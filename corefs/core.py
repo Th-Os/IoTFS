@@ -3,7 +3,7 @@ import os
 from queue import Queue
 
 from corefs.filesystem.fs import FileSystemStarter, FileSystem
-from corefs.filesystem.producer_fs import ProducerFilesystem
+from corefs.filesystem.producer_fs import ProducerFileSystem
 
 from corefs.utils import _logging
 
@@ -47,7 +47,7 @@ class CoreFS():
         os.environ["MOUNT_POINT"] = os.path.abspath(fs.mount_point)
         if fs is None or not isinstance(fs, FileSystem):
             raise ValueError("No valid filesystem provided.")
-        if len(listeners) > 0 and isinstance(fs, ProducerFilesystem):
+        if len(listeners) > 0 and isinstance(fs, ProducerFileSystem):
             queue = Queue(0)
             fs.setQueue(queue)
             for listener in listeners:

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 from corefs.core import CoreFS
-from corefs.filesystem.producer_fs import ProducerFilesystem
+from corefs.filesystem.producer_fs import ProducerFileSystem
 
 from listener import CustomListener
 
@@ -20,7 +20,7 @@ def parse_args():
 
 def main():
     options = parse_args()
-    fs = ProducerFilesystem(options.mountpoint)
+    fs = ProducerFileSystem(options.mountpoint)
     ls = CustomListener()
     CoreFS(fs, listeners=[ls], debug=options.debug)
 
