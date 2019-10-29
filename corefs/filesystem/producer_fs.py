@@ -7,7 +7,7 @@ from corefs.utils._fs_utils import Types
 from corefs.utils import _logging
 
 
-class ProducerFilesystem(FileSystem):
+class ProducerFileSystem(FileSystem):
 
     def __init__(self, mount_point, queue=None, debug=False):
         self.logger = _logging.create_logger("producer")
@@ -21,81 +21,110 @@ class ProducerFilesystem(FileSystem):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         result = await super().create(parent_inode, name, mode, flags, ctx)
+        inode = result[0]
+        node = self.data.nodes[inode]
+        entry = self.data.get_entry_by_parent_name(parent_inode, name)
+
         self.queue.put(CreateObject(
-            Operations.CREATE_FILE, LockedFile(self.nodes[result[0]])))
+            Operations.CREATE_FILE, LockedFile(node, entry)))
         return result
 
     async def mknod(self, parent_inode, name, mode, rdev, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         result = await super().mknod(parent_inode, name, mode, rdev, ctx)
+        node = self.data.nodes[result.st_ino]
+        entry = self.data.get_entry_by_parent_name(parent_inode, name)
+
         self.queue.put(CreateObject(
-            Operations.CREATE_FILE, LockedFile(self.nodes[result.st_ino])))
+            Operations.CREATE_FILE, LockedFile(node, entry)))
         return result
 
     async def mkdir(self, parent_inode, name, mode, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         result = await super().mkdir(parent_inode, name, mode, ctx)
+        node = self.data.nodes[result.st_ino]
+        entry = self.data.get_entry_by_parent_name(parent_inode, name)
+
         self.queue.put(CreateObject(
-            Operations.CREATE_DIR, LockedDirectory(self.nodes[result.st_ino])))
+            Operations.CREATE_DIR, LockedDirectory(node, entry)))
         return result
 
     async def read(self, inode, off, size):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         result = await super().read(inode, off, size)
+        node = self.data.nodes[inode]
+        entry = self.data.get_entry(inode)
+
         self.queue.put(ReadObject(
-            Operations.READ_FILE, LockedFile(self.nodes[inode]), result))
+            Operations.READ_FILE, LockedFile(node, entry), result))
         return result
 
     async def readdir(self, inode, start_id, token):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         await super().readdir(inode, start_id, token)
-        result = self.__get_children(inode)
+        result = self.data.get_children(inode)
+        node = self.data.nodes[inode]
+        entry = self.data.get_entry(inode)
+
         self.queue.put(ReadObject(
-            Operations.READ_DIR, LockedDirectory(self.nodes[inode]), result))
+            Operations.READ_DIR, LockedDirectory(node, entry), result))
 
     async def write(self, inode, off, buf):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         result = await super().write(inode, off, buf)
+        node = self.data.nodes[inode]
+        entry = self.data.get_entry(inode)
+
         self.queue.put(WriteObject(
-            Operations.WRITE_FILE, LockedFile(self.nodes[inode]), result))
+            Operations.WRITE_FILE, LockedFile(node, entry), result))
         return result
 
     async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         await super().rename(parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx)
-        node = self.__get_node_by_name(name_new)
+        entry = self.data.get_entry_by_parent_name(parent_inode_new, name_new)
+        node = self.data.nodes[entry.inode]
         operation = None
+        renamed_node = None
         if node.get_type() == Types.FILE:
             operation = Operations.RENAME_FILE
-            node = LockedFile(node)
+            renamed_node = LockedFile(node, entry)
         else:
             operation = Operations.RENAME_DIR
-            node = LockedDirectory(node)
+            renamed_node = LockedDirectory(node, entry)
+
         self.queue.put(RenameObject(
-            operation, node, LockedDirectory(self.nodes[parent_inode_new]), name_new))
+            operation, renamed_node, LockedDirectory(self.data.nodes[parent_inode_new], self.data.get_entry(parent_inode_new)), name_new))
 
     async def unlink(self, parent_inode, name, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
-        removed_file = LockedFile(self.__get_node_by_name(name))
+        entry = self.data.get_entry_by_parent_name(parent_inode, name)
+        node = self.data.nodes[entry.inode]
+        removed_file = LockedFile(node, entry)
         await super().unlink(parent_inode, name, ctx)
+
         self.queue.put(RemoveObject(Operations.REMOVE_FILE,
                                     removed_file))
 
     async def rmdir(self, parent_inode, name, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
-        removed_dir = LockedDirectory(self.__get_node_by_name(name))
+        entry = self.data.get_entry_by_parent_name(parent_inode, name)
+        node = self.data.nodes[entry.inode]
+        removed_dir = LockedDirectory(node, entry)
         await super().rmdir(parent_inode, name, ctx)
+
         self.queue.put(RemoveObject(Operations.REMOVE_DIR,
                                     removed_dir))
 
+    # TODO: Refactor if needed.
     def __get_children(self, inode):
         inodes = super()._FileSystem__get_children(inode)
         result = []
@@ -106,9 +135,6 @@ class ProducerFilesystem(FileSystem):
             else:
                 result.append(LockedDirectory(node))
         return result
-
-    def __get_node_by_name(self, name):
-        return super()._FileSystem__get_node_by_name(name)
 
 
 class Events(Enum):
@@ -134,6 +160,16 @@ class Operations(Enum):
 
     REMOVE_FILE = 8
     REMOVE_DIR = 9
+
+
+class Result():
+
+    def __init__(self, inode, node_type, name, path, data=None):
+        self.inode = inode
+        self.type = node_type
+        self.name = name
+        self.path = path
+        self.data = data
 
 
 class ProducerObject():

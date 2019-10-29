@@ -10,9 +10,9 @@ from corefs.utils._fs_utils import Encodings, Types
 
 class Node():
 
-    def __init__(self, mode, parent, file_type, open_count):
+    def __init__(self, mode, parent, node_type, open_count):
         self.parent = parent
-        self.type = file_type
+        self.type = node_type
 
         # Attributes
         self.mode = mode
@@ -40,19 +40,6 @@ class Node():
     def get_permissions(self):
         return stat.S_IMODE(self.mode)
 
-    # TODO: not used=?
-    def get_attr(self, inode):
-        entry = pyfuse3.EntryAttributes()
-        entry.st_mode = self.mode
-        entry.st_size = self.size
-        entry.st_atime_ns = self.atime
-        entry.st_ctime_ns = self.ctime
-        entry.st_mtime_ns = self.mtime
-        entry.st_gid = os.getgid()
-        entry.st_uid = os.getuid()
-        entry.st_ino = inode
-        return entry
-
     def has_attr(self):
         return self.size is not None
 
@@ -79,6 +66,8 @@ class Node():
 
     def to_dict(self):
         return {
+            "parent": self.parent,
+            "type": self.type.name,
             "mode": oct(self.mode),
             "invisible": self.invisible,
             "open_count": self.open_count,
@@ -86,15 +75,16 @@ class Node():
         }
 
     def __repr__(self):
-        return "Node(name: {0}, path: {1}, type: {2}, mode: {3}, invisible: {4}, open_count: {5}, lock: {6})".format(
-            self.name, self.path, self.type.name, oct(self.mode), self.invisible, self.open_count, self.locked)
+        return "Node(parent: {0}, type: {1}, mode: {2}, invisible: {3}, open_count: {4}, lock: {5})".format(
+            self.parent, self.type.name, oct(self.mode), self.invisible, self.open_count, self.locked)
 
 
 class LockedNode():
 
-    def __init__(self, node):
-        self.name = node.get_name(encoding=Encodings.UTF_8_ENCODING)
-        self.path = node.path
+    def __init__(self, node, entry):
+        self.inode = entry.inode
+        self.name = entry.get_name(encoding=Encodings.UTF_8_ENCODING)
+        self.path = entry.path
         self.type = node.type.name
         self.mode = node.mode
         self.size = node.size
@@ -148,8 +138,8 @@ class File(Node):
 
 class LockedFile(LockedNode):
 
-    def __init__(self, node):
-        super().__init__(node)
+    def __init__(self, node, entry):
+        super().__init__(node, entry)
         self.data = node.get_data(encoding=Encodings.UTF_8_ENCODING)
 
 
@@ -180,8 +170,8 @@ class Directory(Node):
 
 class LockedDirectory(LockedNode):
 
-    def __init__(self, node):
-        super().__init__(node)
+    def __init__(self, node, entry):
+        super().__init__(node, entry)
         self.root = node.is_root()
 
     def is_root(self):
