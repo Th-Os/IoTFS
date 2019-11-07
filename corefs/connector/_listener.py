@@ -21,7 +21,6 @@ class Listener():
             while True:
                 # time.sleep(self.interval)
                 item = self.queue.get()
-                self.log.warning(self.queue.qsize())
                 self.process(item)
                 self.queue.task_done()
         except Exception as e:

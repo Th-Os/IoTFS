@@ -20,6 +20,7 @@
 
 Errors:
 - 22 Readdir calls at the beginning of each session. -> listening process is disturbed
+- rmdir not working correctly: 2 x fs_test
 
 
 Implementing Links

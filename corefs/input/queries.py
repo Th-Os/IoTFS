@@ -58,6 +58,7 @@ class CreateQuery(Query):
         self.log.info("start %s", self.type)
         if self.type == Types.FILE:
             self.log.info("Create file with path: %s", full_path)
+            assert os.path.exists(full_path) is False
             fd = os.open(full_path, os.O_CREAT | os.O_WRONLY, self.permissions)
             assert os.path.exists(full_path) is True
             if self.data is not None:
@@ -125,10 +126,16 @@ class UpdateQuery(Query):
                 os.rename(full_path, os.path.join(self.new_path, self.name))
             elif self.new_data is not None:
                 self.log.info(self.new_data)
-                fd = os.open(full_path, os.O_WRONLY | os.O_TRUNC)
+                fd = os.open(full_path, os.O_RDWR)
+                _stat = os.fstat(fd)
+                self.log.info(os.read(fd, _stat.st_size))
+                """              
+                fd = os.open(full_path, os.O_RDWR)
+                
                 os.ftruncate(fd, 0)
                 os.write(fd, self.new_data.encode("utf-8"))
                 os.close(fd)
+                """
         except Exception as e:
             self.log.error(e)
         self.run_callback()

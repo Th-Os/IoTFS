@@ -218,6 +218,7 @@ class _FileSystem(pyfuse3.Operations):
 
         self.log.debug("current nodes")
         self.log.debug(self.data.nodes)
+        self.log.debug(self.data.entries)
         self.log.debug("Name: %s", name)
 
         # TODO: Bug if new entry has the same name as root node.
@@ -424,7 +425,7 @@ class _FileSystem(pyfuse3.Operations):
             return
         for entry in children:
             try:
-                if entry.get_name() == name:
+                if entry.name == name:
                     inode = entry.inode
                     self.log.info("Lock inode: %d", inode)
                     self.log.info("open_count: %d",
@@ -723,6 +724,10 @@ class _FileSystem(pyfuse3.Operations):
             else:
                 inode = filtered_list[0].inode
 
+            # TODO: check this behavior. Could result in errors.
+            self.data.try_decrease_op_count(inode)
+            self.log.info("Lock inode: %d", inode)
+            self.log.info("open_count: %d", self.data.nodes[inode].open_count)
             # Forget path for readdir. But it will be accessible via getattr, if lookup_count > 1.
             self.data.nodes[inode].set_invisible()
             if self.data.nodes[inode].open_count <= 1:
