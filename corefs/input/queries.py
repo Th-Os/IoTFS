@@ -21,7 +21,8 @@ class Query():
 
         self.type = node_type
         self.name = name
-        self.path = os.path.join(mount_point, path)
+        self.path = mount_point if path == "" else os.path.join(
+            mount_point, path)
         self.callback = callback
 
     def start(self):
@@ -48,14 +49,14 @@ class QueryQueue():
 
 class CreateQuery(Query):
 
-    def __init__(self, node_type, name, path, permissions=0o754, data=None, callback=None, debug=False):
+    def __init__(self, node_type, name, path="", permissions=0o754, data=None, callback=None, debug=False):
         super().__init__(node_type, name, path, callback, debug)
         self.data = data
         self.permissions = permissions
 
     def start(self):
         full_path = os.path.join(self.path, self.name)
-        self.log.info("start %s", self.type)
+        self.log.debug("start %s", self.type)
         if self.type == Types.FILE:
             self.log.info("Create file with path: %s", full_path)
             assert os.path.exists(full_path) is False
@@ -81,7 +82,7 @@ class CreateQuery(Query):
 class ReadQuery(Query):
 
     # reading file and reading directory (results in list)
-    def __init__(self, node_type, name, path, callback=None, debug=False):
+    def __init__(self, node_type, name, path="", callback=None, debug=False):
         super().__init__(node_type, name, path, callback, debug)
 
     def start(self):
@@ -104,7 +105,7 @@ class ReadQuery(Query):
 
 class UpdateQuery(Query):
 
-    def __init__(self, node_type, name, path, new_name=None, new_path=None, new_data=None, callback=None, debug=False):
+    def __init__(self, node_type, name, path="", new_name=None, new_path=None, new_data=None, callback=None, debug=True):
         super().__init__(node_type, name, path, callback, debug)
 
         self.new_name = new_name
@@ -114,28 +115,34 @@ class UpdateQuery(Query):
     def start(self):
         full_path = os.path.join(self.path, self.name)
         try:
-            # TODO: Test this bevavior
             if self.new_name is not None:
-                self.log.info(self.new_name)
-                self.log.info(full_path)
-                self.log.info(os.path.join(self.path, self.new_name))
-                self.log.info(os.path.exists(full_path))
+                self.log.debug("Update name from %s to %s",
+                               self.name, self.new_name)
                 os.rename(full_path, os.path.join(self.path, self.new_name))
             elif self.new_path is not None:
-                self.log.info(self.new_path)
+                self.log.debug("Update path from %s to %s",
+                               self.path, self.new_path)
                 os.rename(full_path, os.path.join(self.new_path, self.name))
             elif self.new_data is not None:
-                self.log.info(self.new_data)
                 fd = os.open(full_path, os.O_RDWR)
                 _stat = os.fstat(fd)
-                self.log.info(os.read(fd, _stat.st_size))
-                """              
-                fd = os.open(full_path, os.O_RDWR)
-                
-                os.ftruncate(fd, 0)
-                os.write(fd, self.new_data.encode("utf-8"))
+                output = os.read(fd, _stat.st_size)
+                data = os.fsdecode(output)
+                if data != self.new_data:
+                    self.log.debug("Update data of %s from %s to %s",
+                                   self.name, data, self.new_data)
+
+                    # Accepted answer: https://stackoverflow.com/questions/17126037/how-to-delete-only-the-content-of-file-in-python/17126137#17126137
+                    # When using ftruncate then \00 (NULL) characters will be added.
+                    # Trying to get rid of them with os.lseek
+                    os.ftruncate(fd, 0)
+                    os.lseek(fd, 0, os.SEEK_SET)
+
+                    os.write(fd, self.new_data.encode("utf-8"))
+                else:
+                    self.log.warning(
+                        "Same data in %s. Didn't update file.", self.name)
                 os.close(fd)
-                """
         except Exception as e:
             self.log.error(e)
         self.run_callback()
@@ -143,7 +150,7 @@ class UpdateQuery(Query):
 
 class DeleteQuery(Query):
 
-    def __init__(self, node_type, name, path, callback=None, debug=False):
+    def __init__(self, node_type, name, path="", callback=None, debug=False):
         super().__init__(node_type, name, path, callback, debug)
 
     def start(self):

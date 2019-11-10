@@ -54,6 +54,7 @@ class CoreFS():
                 listener.setQueue(queue)
         try:
             if not os.path.isdir(fs.mount_point):
+                log.warning("Creating mountpoint: %s", fs.mount_point)
                 os.mkdir(fs.mount_point)
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + len(listeners) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)

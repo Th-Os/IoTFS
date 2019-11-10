@@ -18,8 +18,10 @@ def create_logger(name="corefs", debug=False, with_file=True):
     if with_file:
         if os.path.isdir("logs") is False:
             os.mkdir("logs")
-        fh = logging.FileHandler(os.path.join(
-            "logs", logger.name + ".log"), "w+")
+        file_path = os.path.join("logs", logger.name + ".log")
+        if os.path.exists(file_path):
+            os.unlink(file_path)
+        fh = logging.FileHandler(file_path, "w+")
     sh = logging.StreamHandler(stream=stdout)
 
     if with_file:

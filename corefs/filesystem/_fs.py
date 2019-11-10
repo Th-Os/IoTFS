@@ -146,8 +146,16 @@ class _FileSystem(pyfuse3.Operations):
         node = self.data.nodes[inode]
         try:
             if fields.update_size:
-                node.size = attr.st_size
+                # This is needed for truncating files.
+                if node.data is None:
+                    node.data = b''
+                if len(node.data) < attr.st_size:
+                    node.data = node.data + b'\0' * \
+                        (attr.st_size - len(node.data))
+                else:
+                    node.data = node.data[:attr.st_size]
                 self.log.debug("new size: %d", node.size)
+                self.log.debug("new data: %s", node.data)
             if fields.update_mode:
                 node.mode = attr.st_mode
                 self.log.debug("new mode: %s", oct(node.mode))
@@ -287,6 +295,9 @@ class _FileSystem(pyfuse3.Operations):
 
         self.log.debug(stat.filemode(flags))
         self.log.debug(stat.S_IMODE(flags))
+        if (flags & os.O_TRUNC) != 0:
+            self.log.warning("Truncating data of inode: %d", inode)
+            self.data.nodes[inode].data = ""
         if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
 
             self.log.error("False permission.")
@@ -778,9 +789,11 @@ class _FileSystem(pyfuse3.Operations):
         count = len(self.data.nodes)
         stats.f_files = count
 
-        # TODO: Think about max size of filesystem
         stats.f_ffree = max(count, 200)
         stats.f_favail = stats.f_ffree
+
+        # Filemanagers need maximum file name length to create dir or file.
+        stats.f_namemax = 100
 
         return stats
 

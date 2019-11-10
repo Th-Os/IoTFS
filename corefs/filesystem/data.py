@@ -94,7 +94,14 @@ class Data():
 
     def add_root_entry(self, name, mode=STANDARD_MODE):
         self.log.debug("Adding root entry.")
-        path = os.sep
+        if os.sep in name:
+            parts = name.rsplit(os.sep, 1)
+            name = parts[-1]
+            path = parts[0]
+            if path[0] != os.sep:
+                path = os.sep + path
+        else:
+            path = os.sep
         self.log.debug(name)
         self.log.debug(path)
         self.nodes[ROOT_INODE] = Directory(mode, root=True)
