@@ -1,7 +1,7 @@
 import os
 import stat
 
-from corefs.filesystem.node import File, Directory
+from corefs.filesystem.node import File, Link, Directory, LinkDir
 from corefs.filesystem.entry import Entry, SymbolicEntry, HardlinkEntry
 
 from corefs.filesystem.node_dict import NodeDict
@@ -43,7 +43,10 @@ class Data():
 
     def add_link_entry(self, name, parent_inode, link_type, mode=STANDARD_MODE, link_path=None, target_inode=None):
         parent_entry = self.get_entry(parent_inode)
+        self.log.debug(parent_entry)
         path = parent_entry.get_full_path()
+        self.log.debug(path)
+
         entry = None
         if link_type == LinkTypes.SYMBOLIC:
             '''
@@ -64,14 +67,20 @@ class Data():
             else:
                 source_path = os.sep
                 source_name = link_path
+            self.log.debug(source_path)
+            self.log.debug(source_name)
             source_entry = self.get_entry_by_name_path(
                 source_name, source_path)
             if source_entry == None:
                 raise Exception("No source entry found in current filesystem.")
+
+            # TODO: mode is probably buggy.
             inode = self.__add_inode(
-                parent_inode, node_type=self.nodes[source_entry.inode].type, mode=(stat.S_IFLNK | self.nodes[source_entry.inode].mode))
+                parent_inode, node_type=self.nodes[source_entry.inode].type, mode=41471, is_link=True)
             entry = SymbolicEntry(
                 inode, name, path, parent=parent_entry, link_path=link_path)
+            self.log.debug(entry)
+            self.log.debug(self.nodes[inode])
         elif link_type == LinkTypes.HARDLINK:
             '''
                 - data in file
@@ -110,7 +119,8 @@ class Data():
         self.inode_entries_map[ROOT_INODE] = [entry]
         self.inode_unique_count += 1
 
-    def __add_inode(self, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE):
+    # TODO: refactor is_link behavior
+    def __add_inode(self, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, is_link=False):
         if len(self.nodes) == 0:
             self.log.error("No root inode in nodes?")
             inode = 2
@@ -121,9 +131,15 @@ class Data():
         self.log.debug("Create inode %d: %s", inode, node_type.name)
 
         if node_type == Types.FILE or node_type == Types.SWAP:
-            self.nodes[inode] = File(mode, parent=parent_inode, data=data)
+            if is_link:
+                self.nodes[inode] = Link(mode, parent=parent_inode, data=data)
+            else:
+                self.nodes[inode] = File(mode, parent=parent_inode, data=data)
         elif node_type == Types.DIR:
-            self.nodes[inode] = Directory(mode, parent=parent_inode)
+            if is_link:
+                self.nodes[inode] = LinkDir(mode, parent=parent_inode)
+            else:
+                self.nodes[inode] = Directory(mode, parent=parent_inode)
         elif node_type == Types.LINK:
             # This is a symlink. Can link to another filesystem too.
             raise NotImplementedError("Symlink")
@@ -132,6 +148,18 @@ class Data():
         self.nodes[inode].inc_open_count()
         self.inode_entries_map[inode] = []
         return inode
+
+    def get_symbolic_target(self, entry):
+        if type(entry) == SymbolicEntry:
+            parts = entry.link_path.split(os.sep)
+            name = parts[-1]
+            path = os.path.join(*parts[:-1])
+            if entry.link_path[0] == os.sep:
+                path = os.sep + path
+            result = self.get_entry_by_name_path(name, path)
+            self.log.debug(result)
+            return result
+        return None
 
     def get_entries_of_inode(self, inode, link_type=None):
         self.log.debug(

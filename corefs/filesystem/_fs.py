@@ -16,7 +16,7 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from corefs.filesystem.entry import Entry
+from corefs.filesystem.entry import Entry, SymbolicEntry
 from corefs.filesystem.data import Data
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE
@@ -95,6 +95,8 @@ class _FileSystem(pyfuse3.Operations):
             struct timespec st_mtim;  /* Time of last modification */
             struct timespec st_ctim;  /* Time of last status change */
         '''
+        self.log.debug("MODE in getattr")
+        self.log.debug(node.mode)
 
         attr.st_mode = node.mode
         attr.st_size = node.size
@@ -246,8 +248,22 @@ class _FileSystem(pyfuse3.Operations):
                     self.data.try_increase_op_count(inode)
                     return self.__getattr(inode)
 
-        self.log.debug("Couldn't find inode. Is it a swap file?")
+        self.log.debug("Couldn't find inode. Is it a SymbolicEntry?")
         name = name.decode("utf-8")
+        for entry in children:
+            self.log.debug(entry)
+            if type(entry) is SymbolicEntry:
+                self.log.debug("is symbolic")
+                self.log.debug(name)
+                self.log.debug(entry.link_path.split(os.sep)[-1])
+                if name == entry.link_path.split(os.sep)[-1]:
+                    self.log.debug("found linked entry")
+                    result = self.data.get_symbolic_target(entry)
+                    if result is not None:
+                        return self.__getattr(result.inode)
+
+        self.log.debug("Couldn't find SymbolicEntry. Is it a swap file?")
+
         if len(name) > 4 and name[-4:] == ".swp":
             self.log.debug("Found .swp")
 
@@ -560,7 +576,9 @@ class _FileSystem(pyfuse3.Operations):
         the returned inode by one.
         '''
         try:
-            target = os.sep + os.fsdecode(target)
+            target = os.fsdecode(target)
+            if target[0] != os.sep:
+                target = os.sep + os.fsdecode(target)
             self.log.debug("Using path: %s", target)
             inode = self.data.add_link_entry(
                 name, parent_inode, LinkTypes.SYMBOLIC, link_path=target).inode

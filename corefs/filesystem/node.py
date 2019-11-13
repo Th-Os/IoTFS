@@ -136,6 +136,13 @@ class File(Node):
             "lock: {0})".format(self.locked)
 
 
+class Link(File):
+
+    def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
+        super().__init__(mode, parent, data, unlink, open_count=open_count)
+        self.mode = mode
+
+
 class LockedFile(LockedNode):
 
     def __init__(self, node, entry):
@@ -166,6 +173,13 @@ class Directory(Node):
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\
             "lock: {0})".format(self.locked)
+
+
+class LinkDir(Directory):
+
+    def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0):
+        super().__init__(mode, parent, unlink, root, open_count)
+        self.mode = mode
 
 
 class LockedDirectory(LockedNode):
