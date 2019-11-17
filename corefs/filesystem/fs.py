@@ -25,10 +25,12 @@ class FileSystem(_FileSystem):
 
     """
 
-    def __init__(self, mount_point, debug=False):
+    def __init__(self, mount_point, structure_json=None, debug=False):
         super().__init__(mount_point, debug)
         self.debug = debug
         self.mount_point = mount_point
+
+        # init structure
 
     async def create(self, parent_inode, name, mode, flags, ctx):
         return await super().create(parent_inode, name, mode, flags, ctx)

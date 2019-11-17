@@ -1,0 +1,140 @@
+{
+    "settings": {
+        "use_id": "uuid"
+    },
+    "nodes": [
+        {
+            "node": "network",
+            "id": 0,
+            "match": "network",
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                }
+            ]
+        },
+        {
+            "node": "building",
+            "id": 1,
+            "match": "building",
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                }
+            ]
+        },
+        {
+            "node": "room",
+            "id": 2,
+            "match": "room",
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                }
+            ]
+        },
+        {
+            "node": "access point",
+            "id": 3,
+            "match": "ap",
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                }
+            ]
+        },
+        {
+            "name": "sensor_node",
+            "id": 4,
+            "match": "",
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                }
+            ]
+        },
+        {
+            "node": "sensor",
+            "id": 5,
+            "match": "",
+            "has_data": true,
+            "values": [
+                {
+                    "name": "id",
+                    "value": "$id"
+                },
+                {
+                    "name": "name",
+                    "value": "$name"
+                },
+                {
+                    "name": "sensor_types",
+                    "value": "$sensor_types"
+                }
+            ]
+        }
+    ],
+    "root": [
+        [
+            0,
+            3,
+            4,
+            5
+        ],
+        [
+            1,
+            2,
+            4,
+            5
+        ]
+    ],
+    "filters": [
+        {
+            "name": "by-id",
+            "type": "value",
+            "by": "$id",
+            "target": "all"
+        },
+        {
+            "name": "by-building",
+            "type": "id",
+            "by": 1
+        },
+        {
+            "name": "by-network",
+            "type": "id",
+            "by": 0
+        },
+        {
+            "name": "by-sensor-type",
+            "type": "value",
+            "by": "$sensor_type",
+            "target": 5
+        }
+    ]
+}

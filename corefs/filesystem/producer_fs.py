@@ -9,9 +9,9 @@ from corefs.utils import _logging
 
 class ProducerFileSystem(FileSystem):
 
-    def __init__(self, mount_point, queue=None, debug=False):
+    def __init__(self, mount_point, structure_json=None, queue=None, debug=False):
         self.logger = _logging.create_logger("producer")
-        super().__init__(mount_point, debug)
+        super().__init__(mount_point, structure_json, debug)
         self.queue = queue
 
     def setQueue(self, queue):
