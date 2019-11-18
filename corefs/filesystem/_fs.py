@@ -600,9 +600,8 @@ class _FileSystem(pyfuse3.Operations):
         if entry is None:
             raise FUSEError(errno.ENOENT)
 
-        # The returned path will be used by lookup to find source. Therefore, just the name is needed.
-        self.log.debug("Returning path: %s", entry.link_path.split(os.sep)[-1])
-        return os.fsencode(entry.link_path.split(os.sep)[-1])
+        self.log.debug("Real path: %s", entry.link_path)
+        return os.fsencode(entry.link_path)
 
     # Hardlink -> inode connects to 2 or more nodes
     @wrapper(1, 3)

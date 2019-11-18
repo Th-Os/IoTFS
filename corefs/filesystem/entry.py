@@ -33,7 +33,7 @@ class Entry():
         return os.path.join(self.path, self.get_name(encoding=Encodings.UTF_8_ENCODING))
 
     def __repr__(self):
-        return "Entry(name: {0}, path: {1})".format(self.name, self.path)
+        return "Entry(inode: {0}, name: {1}, path: {2})".format(self.inode, self.name, self.path)
 
 
 class SymbolicEntry(Entry):
@@ -43,7 +43,7 @@ class SymbolicEntry(Entry):
         self.link_path = link_path
 
     def __repr__(self):
-        return "SymbolicEntry(name: {0}, path: {1}, link path: {2})".format(self.name, self.path, self.link_path)
+        return "SymbolicEntry(inode: {0}, name: {1}, path: {2}, link path: {3})".format(self.inode, self.name, self.path, self.link_path)
 
 
 class HardlinkEntry(Entry):
