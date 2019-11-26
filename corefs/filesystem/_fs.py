@@ -205,8 +205,7 @@ class _FileSystem(pyfuse3.Operations):
         xattr = self.data.nodes[inode].xattr
 
         if name not in xattr:
-            # https://github.com/libfuse/pyfuse3/blob/master/src/xattr.h ENOATTR = ENODATA
-            raise FUSEError(errno.ENODATA)
+            raise FUSEError(pyfuse3.ENOATTR)
         return xattr[name]
 
     @wrapper(1, 2)
@@ -231,7 +230,7 @@ class _FileSystem(pyfuse3.Operations):
         self.log.debug(self.data.entries)
         self.log.debug("Name: %s", name)
 
-        # TODO: Bug if new entry has the same name as root node.
+        # TODO: Bug if new entry has the same name as root node and is located in root.
         if parent_inode == ROOT_INODE and self.data.get_entry(parent_inode).name == name:
             self.log.debug("Looked up root dir.")
             return self.__getattr(parent_inode)
@@ -306,7 +305,6 @@ class _FileSystem(pyfuse3.Operations):
         attributes set; see the `FileInfo` documentation for more information.
         '''
 
-        # TODO: Add permission handling to nodes.
         assert flags & os.O_CREAT == 0
 
         self.log.debug(stat.filemode(flags))
@@ -314,8 +312,9 @@ class _FileSystem(pyfuse3.Operations):
         if (flags & os.O_TRUNC) != 0:
             self.log.warning("Truncating data of inode: %d", inode)
             self.data.nodes[inode].data = ""
-        if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
 
+        # TODO: Add permission handling to nodes. Currently not active.
+        if not (flags & os.O_RDWR or flags & os.O_RDONLY or flags & os.O_WRONLY or flags & os.O_APPEND):
             self.log.error("False permission.")
             self.log.debug("read write: %d", flags & os.O_RDWR)
             self.log.debug("read only: %d", flags & os.O_RDONLY)
@@ -350,8 +349,6 @@ class _FileSystem(pyfuse3.Operations):
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
         '''
-
-        # TODO: If name already exists, what should be done?
 
         if name.decode("utf-8")[-4:] == ".swp":
             self.log.debug("Creating a swap file.")
@@ -472,9 +469,7 @@ class _FileSystem(pyfuse3.Operations):
         called multiple times for the same open file (e.g. if the file handle
         has been duplicated).
         '''
-
-        # TODO: Really decrease op count?
-        # self.try_decrease_op_count(inode)
+        pass
 
     @wrapper(1)
     async def forget(self, inode_list):
@@ -528,7 +523,7 @@ class _FileSystem(pyfuse3.Operations):
         *flags* may be `RENAME_EXCHANGE` or `RENAME_NOREPLACE`. If
         `RENAME_NOREPLACE` is specified, the filesystem must not overwrite
         *name_new* if it exists and return an error instead. If
-        `RENAME_EXCHANGE` is specified, the filesystem must atomically exchange
+        `RENAME_EXCHANGE` is specified, the filesystem must automically exchange
         the two files, i.e. both must exist and neither may be deleted.
         *ctx* will be a `RequestContext` instance.
         Let the inode associated with *name_old* in *parent_inode_old* be
@@ -546,6 +541,8 @@ class _FileSystem(pyfuse3.Operations):
         # See https://github.com/libfuse/pyfuse3/blob/1730558574361bf7b05b1be2a228a0443deca088/examples/tmpfs.py#L224
         if flags != 0:
             raise FUSEError(errno.EINVAL)
+
+        # TODO: RENAME_EXCHANGE & RENAME_NOREPLACE handling
 
         entry_old = self.data.get_entry_by_parent_name(
             parent_inode_old, name_old)
@@ -753,7 +750,6 @@ class _FileSystem(pyfuse3.Operations):
             else:
                 inode = filtered_list[0].inode
 
-            # TODO: check this behavior. Could result in errors.
             self.data.try_decrease_op_count(inode)
             self.log.info("Lock inode: %d", inode)
             self.log.info("open_count: %d", self.data.nodes[inode].open_count)
