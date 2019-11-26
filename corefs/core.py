@@ -28,7 +28,7 @@ class CoreFS():
 
     """
 
-    def __init__(self, fs, adapters=[], listeners=[], debug=False):
+    def __init__(self, fs, listeners=[], debug=False):
         """
         Parameters
         ----------
@@ -56,10 +56,8 @@ class CoreFS():
             if not os.path.isdir(fs.mount_point):
                 log.warning("Creating mountpoint: %s", fs.mount_point)
                 os.mkdir(fs.mount_point)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(adapters) + len(listeners) + 1) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(listeners) + 1) as executor:
                 executor.submit(FileSystemStarter(fs).start)
-                for adapter in adapters:
-                    executor.submit(adapter.start)
                 for listener in listeners:
                     executor.submit(listener.start)
 
