@@ -3,8 +3,6 @@ import os
 
 from corefs.structure._structure import Structure, Element, Data
 
-# ExtendedStructure contains filters, ...
-
 
 class ExtendedStructure(Structure):
 
@@ -14,9 +12,41 @@ class ExtendedStructure(Structure):
 
 class Node(Element):
 
-    def __init__(self, name):
+    def __init__(self, name, relations=dict(), children=[], values=[], types=[], filters=dict()):
         identifier = str(uuid.uuid4()).replace("-", "_")
         super().__init__(identifier, name)
+        self.relations = relations
+        self.children = children
+        self.values = values
+        self.types = types
+        self.filters = filters
+
+    def create(self):
+        if len(self.relations.keys()) > 0:
+            self.__create_relations()
+        if len(self.children) > 0:
+            self.__create_children()
+        if len(self.values) > 0:
+            self.__create_values()
+        if len(self.types) > 0:
+            self.__create_types()
+        if len(self.filters.keys()) > 0:
+            self.__create_filters()
+
+    def __create_relations(self):
+        pass
+
+    def __create_children(self):
+        pass
+
+    def __create_values(self):
+        pass
+
+    def __create_types(self):
+        pass
+
+    def __create_filters(self):
+        pass
 
 
 class Value(Data):

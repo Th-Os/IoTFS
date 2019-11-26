@@ -1,6 +1,3 @@
-# reads in schema file and orders items.
-
-
 class Structure():
 
     def __init__(self):
