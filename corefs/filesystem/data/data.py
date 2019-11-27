@@ -1,17 +1,20 @@
 import os
 import stat
 
-from corefs.filesystem.node import File, Link, Directory, LinkDir
-from corefs.filesystem.entry import Entry, SymbolicEntry, HardlinkEntry
+from corefs.filesystem.data.node import File, Link, Directory, LinkDir
+from corefs.filesystem.data.entry import Entry, SymbolicEntry, HardlinkEntry
 
-from corefs.filesystem.node_dict import NodeDict
-from corefs.filesystem.entry_dict import EntryDict
+from corefs.filesystem.data.node_dict import NodeDict
+from corefs.filesystem.data.entry_dict import EntryDict
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE, STANDARD_MODE, LINK_MODE
 from corefs.utils import _logging
 
 
 class Data():
+
+    # TODO: each entry is a part of a structure -> at start structure of entries will be created
+    # if searching for entry with filters -> get related entry as linkq
 
     def __init__(self, logger=None):
         super().__init__()
@@ -73,8 +76,6 @@ class Data():
                 source_name, source_path)
             if source_entry == None:
                 raise Exception("No source entry found in current filesystem.")
-
-            # TODO: mode is probably buggy.
             inode = self.__add_inode(
                 parent_inode, node_type=self.nodes[source_entry.inode].type, mode=LINK_MODE, is_link=True)
             entry = SymbolicEntry(

@@ -16,8 +16,8 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from corefs.filesystem.entry import Entry, SymbolicEntry
-from corefs.filesystem.data import Data
+from corefs.filesystem.data.entry import Entry, SymbolicEntry
+from corefs.filesystem.data.data import Data
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE
 from corefs.utils import _logging
