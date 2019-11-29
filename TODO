@@ -1,7 +1,5 @@
 - Drawing hourglass model for corefs
 - FS functions to implement (ordered by importance from bottom to top):
-    - removexattr
-    - listxattr
     - fsyncdir
     - fsync
     - flush

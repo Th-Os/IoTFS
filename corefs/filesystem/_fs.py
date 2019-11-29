@@ -847,7 +847,9 @@ class _FileSystem(pyfuse3.Operations):
         This method must return a sequence of `bytes` objects.  The objects must
         not include zero-bytes (``\\0``).
         '''
-        return self.data.nodes[inode].xattr.values()
+        if inode in self.data.nodes and self.data.nodes[inode].xattr is not None:
+            return self.data.nodes[inode].xattr.values()
+        raise FUSEError(pyfuse3.ENOATTR)
 
     @wrapper(1, 2)
     async def removexattr(self, inode, name, ctx):
