@@ -1,7 +1,7 @@
 import os
 import stat
 
-from corefs.filesystem.data.node import File, Link, Directory, LinkDir
+from corefs.filesystem.data.node import File, LinkedFile, Directory, LinkedDirectory
 from corefs.filesystem.data.entry import Entry, SymbolicEntry, HardlinkEntry
 
 from corefs.filesystem.data.node_dict import NodeDict
@@ -14,7 +14,7 @@ from corefs.utils import _logging
 class Data():
 
     # TODO: each entry is a part of a structure -> at start structure of entries will be created
-    # if searching for entry with filters -> get related entry as linkq
+    # if searching for entry with filters -> get related entry as link
 
     def __init__(self, logger=None):
         super().__init__()
@@ -27,7 +27,7 @@ class Data():
         self.inode_entries_map = dict()
         self.inode_unique_count = 0
 
-    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, link_type=None, link_path=None):
+    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE):
         parent_entry = self.get_entry(parent_inode)
         path = parent_entry.get_full_path()
         entry = None
@@ -133,12 +133,13 @@ class Data():
 
         if node_type == Types.FILE or node_type == Types.SWAP:
             if is_link:
-                self.nodes[inode] = Link(mode, parent=parent_inode, data=data)
+                self.nodes[inode] = LinkedFile(
+                    mode, parent=parent_inode, data=data)
             else:
                 self.nodes[inode] = File(mode, parent=parent_inode, data=data)
         elif node_type == Types.DIR:
             if is_link:
-                self.nodes[inode] = LinkDir(mode, parent=parent_inode)
+                self.nodes[inode] = LinkedDirectory(mode, parent=parent_inode)
             else:
                 self.nodes[inode] = Directory(mode, parent=parent_inode)
         elif node_type == Types.LINK:

@@ -99,7 +99,7 @@ class File(Node):
 
     def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
         super().__init__(mode, parent, Types.FILE, open_count=open_count)
-        self.data = data
+        self._data = data
         self.mode = self.mode | stat.S_IFREG
 
     @property
@@ -115,9 +115,9 @@ class File(Node):
 
     def get_data(self, encoding=Encodings.BYTE_ENCODING):
         if encoding == Encodings.BYTE_ENCODING:
-            return self.data
+            return self._data
         else:
-            return os.fsdecode(self.data)
+            return os.fsdecode(self._data)
 
     def get_data_size(self, encoding=Encodings.UTF_8_ENCODING):
         return len(self.get_data(encoding=encoding))
@@ -125,18 +125,18 @@ class File(Node):
     def to_dict(self):
         return {
             **super().to_dict(),
-            "data": self.data
+            "data": self._data
         }
 
     def __repr__(self):
         return "File(mode: {0}, ".format(oct(self.mode)) +\
-            "data: {0}, ".format(self.data) +\
+            "data: {0}, ".format(self._data) +\
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\
             "lock: {0})".format(self.locked)
 
 
-class Link(File):
+class LinkedFile(File):
 
     def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
         super().__init__(mode, parent, data, unlink, open_count=open_count)
@@ -175,7 +175,7 @@ class Directory(Node):
             "lock: {0})".format(self.locked)
 
 
-class LinkDir(Directory):
+class LinkedDirectory(Directory):
 
     def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0):
         super().__init__(mode, parent, unlink, root, open_count)

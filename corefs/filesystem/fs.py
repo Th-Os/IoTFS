@@ -5,6 +5,7 @@ from pyfuse3 import FUSEError
 import trio
 
 from corefs.filesystem._fs import _FileSystem
+from corefs.filesystem.structure.parser import Parser
 
 from corefs.utils import _logging
 
@@ -31,6 +32,8 @@ class FileSystem(_FileSystem):
         self.mount_point = mount_point
 
         # init structure
+        if structure_json is not None:
+            self.data = Parser().parse(structure_json, self.data)
 
     async def create(self, parent_inode, name, mode, flags, ctx):
         return await super().create(parent_inode, name, mode, flags, ctx)

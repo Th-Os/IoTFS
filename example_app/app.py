@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import json
+import os
 
 from corefs.core import CoreFS
 from corefs.filesystem.standard_fs import StandardFileSystem
@@ -19,7 +20,9 @@ def parse_args():
 
 def main():
     options = parse_args()
-    structure = json.load("./structure.json")
+    fd = os.open("./structure.json", os.O_RDONLY)
+    structure = json.load(fd)
+    os.close(fd)
     fs = StandardFileSystem(
         options.mountpoint, structure_json=structure, debug=options.debug)
 

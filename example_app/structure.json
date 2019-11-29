@@ -1,10 +1,11 @@
 {
     "settings": {
-        "use_id": "uuid"
+        "use_id": "uuid",
+        "root": "root"
     },
     "nodes": [
         {
-            "node": "network",
+            "name": "network",
             "id": 0,
             "match": "network",
             "values": [
@@ -19,7 +20,7 @@
             ]
         },
         {
-            "node": "building",
+            "name": "building",
             "id": 1,
             "match": "building",
             "values": [
@@ -34,7 +35,7 @@
             ]
         },
         {
-            "node": "room",
+            "name": "room",
             "id": 2,
             "match": "room",
             "values": [
@@ -49,7 +50,7 @@
             ]
         },
         {
-            "node": "access point",
+            "name": "access point",
             "id": 3,
             "match": "ap",
             "values": [
@@ -79,7 +80,7 @@
             ]
         },
         {
-            "node": "sensor",
+            "name": "sensor",
             "id": 5,
             "match": "",
             "has_data": true,
@@ -99,7 +100,7 @@
             ]
         }
     ],
-    "root": [
+    "root_structure": [
         [
             0,
             3,

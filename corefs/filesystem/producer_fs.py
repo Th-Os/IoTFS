@@ -1,7 +1,7 @@
 from enum import Enum
 
 from corefs.filesystem.fs import FileSystem
-from corefs.filesystem.node import LockedFile, LockedDirectory
+from corefs.filesystem.data.node import LockedFile, LockedDirectory
 
 from corefs.utils._fs_utils import Types
 from corefs.utils import _logging
