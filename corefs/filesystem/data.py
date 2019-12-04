@@ -1,10 +1,10 @@
-import os
-import stat
+# -*- coding: utf-8 -*-
 
-from corefs.filesystem.node import File, Link, Directory, LinkDir
+import os
+
+from corefs.filesystem.node import File, Directory
 from corefs.filesystem.entry import Entry, SymbolicEntry, HardlinkEntry
 
-from corefs.filesystem.node_dict import NodeDict
 from corefs.filesystem.entry_dict import EntryDict
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE, STANDARD_MODE
@@ -20,11 +20,12 @@ class Data():
         else:
             self.log = _logging.create_logger("Data", debug=True)
         self.entries = EntryDict(logger=self.log)
-        self.nodes = NodeDict(logger=self.log)
+        self.nodes = dict()
         self.inode_entries_map = dict()
         self.inode_unique_count = 0
 
-    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, link_type=None, link_path=None):
+    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, link_type=None,
+                  link_path=None):
         parent_entry = self.get_entry(parent_inode)
         path = parent_entry.get_full_path()
         entry = None
@@ -71,7 +72,7 @@ class Data():
             self.log.debug(source_name)
             source_entry = self.get_entry_by_name_path(
                 source_name, source_path)
-            if source_entry == None:
+            if source_entry is None:
                 raise Exception("No source entry found in current filesystem.")
 
             # TODO: mode is probably buggy.
@@ -131,15 +132,9 @@ class Data():
         self.log.debug("Create inode %d: %s", inode, node_type.name)
 
         if node_type == Types.FILE or node_type == Types.SWAP:
-            if is_link:
-                self.nodes[inode] = Link(mode, parent=parent_inode, data=data)
-            else:
-                self.nodes[inode] = File(mode, parent=parent_inode, data=data)
+            self.nodes[inode] = File(mode, parent=parent_inode, data=data, is_link=is_link)
         elif node_type == Types.DIR:
-            if is_link:
-                self.nodes[inode] = LinkDir(mode, parent=parent_inode)
-            else:
-                self.nodes[inode] = Directory(mode, parent=parent_inode)
+            self.nodes[inode] = Directory(mode, parent=parent_inode, is_link=is_link)
         elif node_type == Types.LINK:
             # This is a symlink. Can link to another filesystem too.
             raise NotImplementedError("Symlink")
@@ -167,9 +162,11 @@ class Data():
         if link_type is None:
             return self.inode_entries_map[inode]
         elif link_type == LinkTypes.SYMBOLIC:
-            return [entry for entry in self.inode_entries_map[inode] if entry.link_type is not None and entry.link_type == LinkTypes.SYMBOLIC]
+            return [entry for entry in self.inode_entries_map[inode] if entry.link_type is not None and
+                    entry.link_type == LinkTypes.SYMBOLIC]
         elif link_type == LinkTypes.HARDLINK:
-            return [entry for entry in self.inode_entries_map[inode] if entry.link_type is not None and entry.link_type == LinkTypes.HARDLINK]
+            return [entry for entry in self.inode_entries_map[inode] if entry.link_type is not None and
+                    entry.link_type == LinkTypes.HARDLINK]
         else:
             raise Exception("Unknown linktype: {}".format(link_type))
 

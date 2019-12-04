@@ -1,7 +1,8 @@
-from enum import Enum
+# -*- coding: utf-8 -*-
+
+from corefs.listener.objects import CreateObject, ReadObject, RemoveObject, RenameObject, WriteObject, Operations
 
 from corefs.filesystem.fs import FileSystem
-from corefs.filesystem.node import LockedFile, LockedDirectory
 
 from corefs.utils._fs_utils import Types
 from corefs.utils import _logging
@@ -9,7 +10,36 @@ from corefs.utils import _logging
 
 class ProducerFileSystem(FileSystem):
 
+    """
+    ProducerFileSystem is the base class for every filesystem that uses the *corefs.listener.Listener*.
+    It will produce messages through a messege queue, which the listener listens to.
+    Therefore, a developer can listen for file system events.
+
+    ...
+
+    Attributes
+    ----------
+    mount_point : str
+        path of mountpoint
+    queue : queue.Queue
+        message queue for listening module
+    debug : bool, optional
+        this defines whether the logging output should include the debug level
+
+    """
+
     def __init__(self, mount_point, queue=None, debug=False):
+        """
+        Parameters
+        ----------
+        mount_point : str
+            a mounting point for the filesystem.
+        queue : queue.Queue
+            message queue for listening module
+        debug : bool, optional
+            this defines whether the logging output should include the debug level
+        """
+
         self.logger = _logging.create_logger("producer")
         super().__init__(mount_point, debug)
         self.queue = queue
@@ -26,7 +56,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry_by_parent_name(parent_inode, name)
 
         self.queue.put(CreateObject(
-            Operations.CREATE_FILE, LockedFile(node, entry)))
+            Operations.CREATE_FILE, {"node": node.to_dict(), "entry": entry.to_dict()}))
         return result
 
     async def mknod(self, parent_inode, name, mode, rdev, ctx):
@@ -37,7 +67,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry_by_parent_name(parent_inode, name)
 
         self.queue.put(CreateObject(
-            Operations.CREATE_FILE, LockedFile(node, entry)))
+            Operations.CREATE_FILE, {"node": node.to_dict(), "entry": entry.to_dict()}))
         return result
 
     async def mkdir(self, parent_inode, name, mode, ctx):
@@ -48,7 +78,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry_by_parent_name(parent_inode, name)
 
         self.queue.put(CreateObject(
-            Operations.CREATE_DIR, LockedDirectory(node, entry)))
+            Operations.CREATE_DIR, {"node": node.to_dict(), "entry": entry.to_dict()}))
         return result
 
     async def read(self, inode, off, size):
@@ -59,7 +89,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry(inode)
 
         self.queue.put(ReadObject(
-            Operations.READ_FILE, LockedFile(node, entry), result))
+            Operations.READ_FILE, {"node": node.to_dict(), "entry": entry.to_dict()}, result))
         return result
 
     async def readdir(self, inode, start_id, token):
@@ -71,7 +101,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry(inode)
 
         self.queue.put(ReadObject(
-            Operations.READ_DIR, LockedDirectory(node, entry), result))
+            Operations.READ_DIR, {"node": node.to_dict(), "entry": entry.to_dict()}, result))
 
     async def write(self, inode, off, buf):
         if self.queue is None:
@@ -81,7 +111,7 @@ class ProducerFileSystem(FileSystem):
         entry = self.data.get_entry(inode)
 
         self.queue.put(WriteObject(
-            Operations.WRITE_FILE, LockedFile(node, entry), result))
+            Operations.WRITE_FILE, {"node": node.to_dict(), "entry": entry.to_dict()}, result))
         return result
 
     async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
@@ -94,20 +124,20 @@ class ProducerFileSystem(FileSystem):
         renamed_node = None
         if node.get_type() == Types.FILE:
             operation = Operations.RENAME_FILE
-            renamed_node = LockedFile(node, entry)
         else:
             operation = Operations.RENAME_DIR
-            renamed_node = LockedDirectory(node, entry)
+        renamed_node = {"node": node.to_dict(), "entry": entry.to_dict()}
 
         self.queue.put(RenameObject(
-            operation, renamed_node, LockedDirectory(self.data.nodes[parent_inode_new], self.data.get_entry(parent_inode_new)), name_new))
+            operation, renamed_node, {"node": self.data.nodes[parent_inode_new].to_dict(), "entry":
+                                      self.data.get_entry(parent_inode_new).to_dict()}, name_new))
 
     async def unlink(self, parent_inode, name, ctx):
         if self.queue is None:
             raise ValueError("Queue is not provided.")
         entry = self.data.get_entry_by_parent_name(parent_inode, name)
         node = self.data.nodes[entry.inode]
-        removed_file = LockedFile(node, entry)
+        removed_file = {"node": node.to_dict(), "entry": entry.to_dict()}
         await super().unlink(parent_inode, name, ctx)
 
         self.queue.put(RemoveObject(Operations.REMOVE_FILE,
@@ -118,97 +148,8 @@ class ProducerFileSystem(FileSystem):
             raise ValueError("Queue is not provided.")
         entry = self.data.get_entry_by_parent_name(parent_inode, name)
         node = self.data.nodes[entry.inode]
-        removed_dir = LockedDirectory(node, entry)
+        removed_dir = {"node": node.to_dict(), "entry": entry.to_dict()}
         await super().rmdir(parent_inode, name, ctx)
 
         self.queue.put(RemoveObject(Operations.REMOVE_DIR,
                                     removed_dir))
-
-    # TODO: Refactor if needed.
-    def __get_children(self, inode):
-        inodes = super()._FileSystem__get_children(inode)
-        result = []
-        for inode in inodes:
-            node = self.nodes[inode]
-            if node.get_type() == Types.FILE:
-                result.append(LockedFile(node))
-            else:
-                result.append(LockedDirectory(node))
-        return result
-
-
-class Events(Enum):
-    CREATE = 1
-    READ = 2
-    WRITE = 3
-    RENAME = 4
-    REMOVE = 5
-
-
-class Operations(Enum):
-
-    CREATE_FILE = 1
-    CREATE_DIR = 2
-
-    READ_FILE = 3
-    READ_DIR = 4
-
-    WRITE_FILE = 5
-
-    RENAME_FILE = 6
-    RENAME_DIR = 7
-
-    REMOVE_FILE = 8
-    REMOVE_DIR = 9
-
-
-class Result():
-
-    def __init__(self, inode, node_type, name, path, data=None):
-        self.inode = inode
-        self.type = node_type
-        self.name = name
-        self.path = path
-        self.data = data
-
-
-class ProducerObject():
-
-    def __init__(self, event, operation, node):
-        self.event = event
-        self.operation = operation
-        self.node = node
-
-
-class CreateObject(ProducerObject):
-
-    def __init__(self, operation, node):
-        super().__init__(Events.CREATE, operation, node)
-
-
-class ReadObject(ProducerObject):
-
-    def __init__(self, operation, node, data):
-        super().__init__(Events.READ, operation, node)
-        self.data = data
-
-
-class WriteObject(ProducerObject):
-
-    def __init__(self, operation, node, buffer_length):
-        super().__init__(Events.WRITE, operation, node)
-        self.buffer_length = buffer_length
-
-
-class RenameObject(ProducerObject):
-
-    def __init__(self, operation, node, new_dir, new_name):
-        super().__init__(Events.RENAME, operation, node)
-        self.new_dir = new_dir
-        self.new_name = new_name
-
-
-class RemoveObject(ProducerObject):
-
-    def __init__(self, operation, node):
-        super().__init__(Events.REMOVE, operation, node)

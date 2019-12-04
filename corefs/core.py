@@ -1,8 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from argparse import ArgumentParser
 import concurrent.futures
 import os
 from queue import Queue
 
 from corefs.filesystem.fs import FileSystemStarter, FileSystem
+from corefs.filesystem.standard_fs import StandardFileSystem
 from corefs.filesystem.producer_fs import ProducerFileSystem
 
 from corefs.utils import _logging
@@ -63,3 +68,27 @@ class CoreFS():
 
         except (BaseException, Exception) as e:
             log.error(e)
+
+
+def parse_args():
+    '''Parse command line'''
+
+    parser = ArgumentParser()
+
+    parser.add_argument('mountpoint', type=str,
+                        help='Where to mount the file system')
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='Enable debugging output')
+    return parser.parse_args()
+
+
+def main():
+    options = parse_args()
+
+    fs = StandardFileSystem(options.mountpoint, debug=options.debug)
+
+    CoreFS(fs, debug=options.debug)
+
+
+if __name__ == "__main__":
+    main()

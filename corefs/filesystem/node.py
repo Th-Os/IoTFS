@@ -1,16 +1,47 @@
+# -*- coding: utf-8 -*-
+
 import os
 import time
 import stat
-from enum import Enum
-
-import pyfuse3
 
 from corefs.utils._fs_utils import Encodings, Types
 
 
 class Node():
 
+    """
+    This Node object is an abstraction for the underlying functions
+    files (File) and directories (Directory) use.
+
+    ...
+
+    Attributes
+    ----------
+    mode : int
+        an integer representation of a node mode containing type of node and permissions
+    parent : int
+        represents parent inode
+    node_type : corefs.utils._fs_utils.Types
+        a type of node (file or directory)
+    open_count : int
+        starting open_count, which will be incremented, when file is opened
+
+    """
+
     def __init__(self, mode, parent, node_type, open_count):
+        """
+        Parameters
+        ----------
+        mode : int
+            an integer representation of a node mode containing type of node and permissions
+        parent : int
+            represents parent inode
+        node_type : corefs.utils._fs_utils.Types
+            a type of node (file or directory)
+        open_count : int
+            starting open_count, which will be incremented, when file is opened
+        """
+
         self.parent = parent
         self.type = node_type
 
@@ -20,7 +51,6 @@ class Node():
 
         self.uid = os.getuid()
         self.gid = os.getgid()
-
         stamp = int(time.time() * 1e9)
         self.atime = stamp
         self.mtime = stamp
@@ -81,7 +111,31 @@ class Node():
 
 class LockedNode():
 
+    """
+    This LockedNode object is used as underlying base for LockedFile and LockedNode.
+    Purpose of this Locked* objects is to have an object without functionality to be passed to the listener.
+
+    ...
+
+    Attributes
+    ----------
+    node : corefs.filesystem.data.node
+        a node object that will be used to fill attributes
+    entry : corefs.filesyste.data.entry
+        a entry object that will be used to fille attributes
+
+    """
+
     def __init__(self, node, entry):
+        """
+        Parameters
+        ----------
+        node : corefs.filesystem.data.node
+            a node object that will be used to fill attributes
+        entry : corefs.filesyste.data.entry
+            a entry object that will be used to fille attributes
+        """
+
         self.inode = entry.inode
         self.name = entry.get_name(encoding=Encodings.UTF_8_ENCODING)
         self.path = entry.path
@@ -97,10 +151,46 @@ class LockedNode():
 
 class File(Node):
 
-    def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
+    """
+    This File object is a representation of a File node containing necessary functions to get and set data.
+    ...
+
+    Attributes
+    ----------
+    mode : int
+        an integer representation of a node mode containing type of node and permissions
+    parent : int, optional
+        represents parent inode
+    data : str, optional
+        string of data saved in an file
+    unlink : boolean, optional
+        this specifies whether a file should be deleted
+    open_count : int, optional
+        starting open_count, which will be incremented, when file is opened
+    is_link : boolean, optional
+        this specifies whether the object is a link to another file
+
+    """
+
+    def __init__(self, mode, parent=None, data="", unlink=False, open_count=0, is_link=False):
+        """
+        Parameters
+        ----------
+        mode : int
+            an integer representation of a node mode containing type of node and permissions
+        parent : int, optional
+            represents parent inode
+        data : str, optional
+            string of data saved in an file
+        unlink : boolean, optional
+            this specifies whether a file should be deleted
+        open_count : int, optional
+            starting open_count, which will be incremented, when file is opened
+        """
         super().__init__(mode, parent, Types.FILE, open_count=open_count)
         self.data = data
-        self.mode = self.mode | stat.S_IFREG
+        if not is_link:
+            self.mode = self.mode | stat.S_IFREG
 
     @property
     def data(self):
@@ -130,32 +220,19 @@ class File(Node):
 
     def __repr__(self):
         return "File(mode: {0}, ".format(oct(self.mode)) +\
-            "data: {0}, ".format(self.data) +\
+            "data: {0}, ".format(self.get_data(encoding=Encodings.UTF_8_ENCODING)) +\
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\
             "lock: {0})".format(self.locked)
 
 
-class Link(File):
-
-    def __init__(self, mode, parent=None, data="", unlink=False, open_count=0):
-        super().__init__(mode, parent, data, unlink, open_count=open_count)
-        self.mode = mode
-
-
-class LockedFile(LockedNode):
-
-    def __init__(self, node, entry):
-        super().__init__(node, entry)
-        self.data = node.get_data(encoding=Encodings.UTF_8_ENCODING)
-
-
 class Directory(Node):
 
-    def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0):
+    def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0, is_link=False):
         super().__init__(mode, parent, Types.DIR, open_count=open_count)
         self.root = root
-        self.mode = self.mode | stat.S_IFDIR
+        if not is_link:
+            self.mode = self.mode | stat.S_IFDIR
         self.size = 0
 
     def is_root(self):
@@ -173,20 +250,3 @@ class Directory(Node):
             "open_count: {0}, ".format(self.open_count) +\
             "invisible: {0}, ".format(self.invisible) +\
             "lock: {0})".format(self.locked)
-
-
-class LinkDir(Directory):
-
-    def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0):
-        super().__init__(mode, parent, unlink, root, open_count)
-        self.mode = mode
-
-
-class LockedDirectory(LockedNode):
-
-    def __init__(self, node, entry):
-        super().__init__(node, entry)
-        self.root = node.is_root()
-
-    def is_root(self):
-        return self.root

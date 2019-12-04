@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
+
 import os
-from enum import Enum
 
 from corefs.utils._fs_utils import LinkTypes, Encodings
 
@@ -35,6 +36,13 @@ class Entry():
     def __repr__(self):
         return "Entry(inode: {0}, name: {1}, path: {2})".format(self.inode, self.name, self.path)
 
+    def to_dict(self):
+        return {
+            "inode": self.inode,
+            "name": self.name,
+            "path": self.path,
+        }
+
 
 class SymbolicEntry(Entry):
 
@@ -43,7 +51,15 @@ class SymbolicEntry(Entry):
         self.link_path = link_path
 
     def __repr__(self):
-        return "SymbolicEntry(inode: {0}, name: {1}, path: {2}, link path: {3})".format(self.inode, self.name, self.path, self.link_path)
+        return "SymbolicEntry(inode: {0}, name: {1}, path: {2}, link path: {3})".format(self.inode, self.name,
+                                                                                        self.path, self.link_path)
+
+    def to_dict(self):
+        return {
+            **super().to_dict(),
+            "link_type": self.link_type.name,
+            "link_path": self.link_path
+        }
 
 
 class HardlinkEntry(Entry):
@@ -53,3 +69,10 @@ class HardlinkEntry(Entry):
 
     def __repr__(self):
         return "HardlinkEntry(name: {0}, path: {1})".format(self.name, self.path)
+
+    def to_dict(self):
+        return {
+            **super().to_dict(),
+            "link_type": self.link_type.name,
+            "link_path": self.link_path
+        }

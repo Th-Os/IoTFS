@@ -1,4 +1,4 @@
-from corefs.connector._listener import Listener
+from corefs.listener.listener import Listener
 
 
 class CustomListener(Listener):

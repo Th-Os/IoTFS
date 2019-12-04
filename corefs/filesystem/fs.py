@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import pyfuse3
 from pyfuse3 import FUSEError
 import trio
@@ -12,7 +12,8 @@ from corefs.utils import _logging
 class FileSystem(_FileSystem):
 
     """
-    FileSystem is the base class for every filesystem and inherits its functionality of a with pyfuse3 implemented corefs.filesystem._fs._FileSystem.
+    FileSystem is the base class for every filesystem and inherits its functionality of a with pyfuse3 implemented
+    corefs.filesystem._fs._FileSystem.
 
     ...
 
@@ -26,6 +27,15 @@ class FileSystem(_FileSystem):
     """
 
     def __init__(self, mount_point, debug=False):
+        """
+        Parameters
+        ----------
+        mount_point : str
+            a mounting point for the filesystem.
+        debug : bool, optional
+            this defines whether the logging output should include the debug level
+        """
+
         super().__init__(mount_point, debug)
         self.debug = debug
         self.mount_point = mount_point
@@ -120,7 +130,6 @@ class FileSystemStarter():
             fuse_log.error("[%s]: %s", type(e).__name__, e)
             pyfuse3.close(unmount=False)
         except BaseException as be:
-            # TODO: Is this even needed?
             fuse_log.error(be.__name__)
             fuse_log.error(be.args)
             fuse_log.error("BaseException occured")

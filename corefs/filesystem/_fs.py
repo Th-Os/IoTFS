@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import pyfuse3
@@ -16,7 +15,7 @@ except ImportError:
 else:
     faulthandler.enable()
 
-from corefs.filesystem.entry import Entry, SymbolicEntry
+from corefs.filesystem.data.entry import SymbolicEntry
 from corefs.filesystem.data import Data
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE
@@ -46,11 +45,35 @@ def wrapper(*params):
 
 class _FileSystem(pyfuse3.Operations):
 
+    """
+    _Filesystem is a pyfuse3 implementation and implements all file system operations.
+    All functions are commented with information provided by the
+    pyfuse3 (https://www.github.com/libfuse/pyfuse3) project.
+
+    ...
+
+    Attributes
+    ----------
+    mount_point : str
+        a mounting point for the filesystem.
+    debug : bool, optional
+        this defines whether the logging output should include the debug level
+
+    """
+
     supports_dot_lookup = True
     enable_writeback_cache = True
     enable_acl = False
 
     def __init__(self, mount_point, debug=False):
+        """
+        Parameters
+        ----------
+        mount_point : str
+            a mounting point for the filesystem.
+        debug : bool, optional
+            this defines whether the logging output should include the debug level
+        """
         super(_FileSystem, self).__init__()
 
         self.log = _logging.create_logger(self.__class__.__name__, debug)
@@ -74,27 +97,6 @@ class _FileSystem(pyfuse3.Operations):
 
         attr = pyfuse3.EntryAttributes()
 
-        '''
-        stat manpage
-            dev_t     st_dev;         /* ID of device containing file */
-            ino_t     st_ino;         /* Inode number */
-            mode_t    st_mode;        /* File type and mode */
-            nlink_t   st_nlink;       /* Number of hard links */
-            uid_t     st_uid;         /* User ID of owner */
-            gid_t     st_gid;         /* Group ID of owner */
-            dev_t     st_rdev;        /* Device ID (if special file) */
-            off_t     st_size;        /* Total size, in bytes */
-            blksize_t st_blksize;     /* Block size for filesystem I/O */
-            blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
-
-            /* Since Linux 2.6, the kernel supports nanosecond
-                precision for the following timestamp fields.
-                For the details before Linux 2.6, see NOTES. */
-
-            struct timespec st_atim;  /* Time of last access */
-            struct timespec st_mtim;  /* Time of last modification */
-            struct timespec st_ctim;  /* Time of last status change */
-        '''
         self.log.debug("MODE in getattr")
         self.log.debug(node.mode)
 
@@ -282,6 +284,7 @@ class _FileSystem(pyfuse3.Operations):
                 src_entry = self.data.add_entry(src_name, parent_inode)
                 swap_entry = self.data.add_entry(
                     name, parent_inode, data=self.data.nodes[src_entry.inode].data)
+                self.log.debug("Swap entry name: " + str(swap_entry.name))
             return self.__getattr(src_entry.inode)
 
         self.log.warning(
