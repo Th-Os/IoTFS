@@ -152,7 +152,7 @@ class LockedNode():
 class File(Node):
 
     """
-    This File object is a representation of a File node containing necessary functions to get and set data.
+    This File object is a representation of a file containing necessary functions to get and set data.
     ...
 
     Attributes
@@ -228,7 +228,49 @@ class File(Node):
 
 class Directory(Node):
 
+    """
+    This Directory object is a representation of a directory containing
+    setting the dir mode and allowing to set as root.
+    ...
+
+    Attributes
+    ----------
+    mode : int
+        an integer representation of a node mode containing type of node and permissions
+    parent : int, optional
+        represents parent inode
+    data : str, optional
+        string of data saved in an file
+    unlink : boolean, optional
+        this specifies whether a file should be deleted
+    open_count : int, optional
+        starting open_count, which will be incremented, when file is opened
+    root : boolean, optional
+        sets the directory to root, if True
+    is_link : boolean, optional
+        this specifies whether the object is a link to another file
+
+    """
+
     def __init__(self, mode, parent=None, unlink=False, root=False, open_count=0, is_link=False):
+        """
+        Parameters
+        ----------
+        mode : int
+            an integer representation of a node mode containing type of node and permissions
+        parent : int, optional
+            represents parent inode
+        data : str, optional
+            string of data saved in an file
+        unlink : boolean, optional
+            this specifies whether a file should be deleted
+        open_count : int, optional
+            starting open_count, which will be incremented, when file is opened
+        root : boolean, optional
+            sets the directory to root, if True
+        is_link : boolean, optional
+            this specifies whether the object is a link to another file
+        """
         super().__init__(mode, parent, Types.DIR, open_count=open_count)
         self.root = root
         if not is_link:

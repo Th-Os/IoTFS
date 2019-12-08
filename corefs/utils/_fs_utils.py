@@ -21,3 +21,4 @@ class LinkTypes(Enum):
 
 ROOT_INODE = 1
 STANDARD_MODE = 0o766
+LINK_MODE = 41471

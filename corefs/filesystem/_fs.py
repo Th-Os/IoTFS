@@ -16,7 +16,7 @@ else:
     faulthandler.enable()
 
 from corefs.filesystem.data.entry import SymbolicEntry
-from corefs.filesystem.data import Data
+from corefs.filesystem.data.data import Data
 
 from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE
 from corefs.utils import _logging
@@ -409,7 +409,7 @@ class _FileSystem(pyfuse3.Operations):
         When implementing this method, the `get_sup_groups` function may be
         useful.
         '''
-        # raise FUSEError(errno.ENOSYS)
+        raise FUSEError(errno.ENOSYS)
 
     @wrapper(1)
     async def release(self, inode):
@@ -475,9 +475,7 @@ class _FileSystem(pyfuse3.Operations):
         called multiple times for the same open file (e.g. if the file handle
         has been duplicated).
         '''
-
-        # TODO: Really decrease op count?
-        # self.try_decrease_op_count(inode)
+        pass
 
     @wrapper(1)
     async def forget(self, inode_list):

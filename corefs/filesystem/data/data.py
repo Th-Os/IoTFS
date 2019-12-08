@@ -2,12 +2,12 @@
 
 import os
 
-from corefs.filesystem.node import File, Directory
-from corefs.filesystem.entry import Entry, SymbolicEntry, HardlinkEntry
+from corefs.filesystem.data.node import File, Directory
+from corefs.filesystem.data.entry import Entry, SymbolicEntry, HardlinkEntry
 
-from corefs.filesystem.entry_dict import EntryDict
+from corefs.filesystem.data.entry_dict import EntryDict
 
-from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE, STANDARD_MODE
+from corefs.utils._fs_utils import Types, Encodings, LinkTypes, ROOT_INODE, STANDARD_MODE, LINK_MODE
 from corefs.utils import _logging
 
 
@@ -75,9 +75,8 @@ class Data():
             if source_entry is None:
                 raise Exception("No source entry found in current filesystem.")
 
-            # TODO: mode is probably buggy.
             inode = self.__add_inode(
-                parent_inode, node_type=self.nodes[source_entry.inode].type, mode=41471, is_link=True)
+                parent_inode, node_type=self.nodes[source_entry.inode].type, mode=LINK_MODE, is_link=True)
             entry = SymbolicEntry(
                 inode, name, path, parent=parent_entry, link_path=link_path)
             self.log.debug(entry)
