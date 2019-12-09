@@ -63,6 +63,9 @@ class Entry():
             return os.fsdecode(self._name)
 
     def get_full_path(self):
+        """ Returns actual path of the entry. Not just the path that contains this entry.
+
+        """
         if self.path == os.sep:
             return self.path + self.get_name(encoding=Encodings.UTF_8_ENCODING)
         return os.path.join(self.path, self.get_name(encoding=Encodings.UTF_8_ENCODING))
@@ -74,13 +77,48 @@ class Entry():
         return {
             "inode": self.inode,
             "name": self.name,
-            "path": self.path,
+            "path": self.path
         }
 
 
 class SymbolicEntry(Entry):
 
+    """
+    SymbolicEntry inherits Entry functionalities and represents a symbolic link.
+
+    ...
+
+    Attributes
+    ----------
+    inode : int
+        an inode number
+    name : str or bytes
+        a string or bytes representation of the name
+    path : str
+        a path
+    parent : int, optional
+        a parent inode
+    link_path : str
+        a path to the link target
+
+    """
+
     def __init__(self, inode, name, path, parent=None, link_path=None):
+        """
+        Parameters
+        ----------
+        inode : int
+            an inode number
+        name : str or bytes
+            a string or bytes representation of the name
+        path : str
+            a path
+        parent : int, optional
+            a parent inode
+        link_path : str
+            a path to the link target
+        """
+
         super().__init__(inode, name, path, parent=parent, link_type=LinkTypes.SYMBOLIC)
         self.link_path = link_path
 
@@ -98,7 +136,36 @@ class SymbolicEntry(Entry):
 
 class HardlinkEntry(Entry):
 
+    """
+    HardlinkEntry inherits Entry functionalities and represents a hard link.
+
+    ...
+
+    Attributes
+    ----------
+    inode : int
+        an inode number
+    name : str or bytes
+        a string or bytes representation of the name
+    path : str
+        a path
+    parent : int, optional
+        a parent inode
+    """
+
     def __init__(self, inode, name, path, parent=None):
+        """
+        Parameters
+        ----------
+        inode : int
+            an inode number
+        name : str or bytes
+            a string or bytes representation of the name
+        path : str
+            a path
+        parent : int, optional
+            a parent inode
+        """
         super().__init__(inode, name, path, parent=parent, link_type=LinkTypes.HARDLINK)
 
     def __repr__(self):
@@ -107,6 +174,5 @@ class HardlinkEntry(Entry):
     def to_dict(self):
         return {
             **super().to_dict(),
-            "link_type": self.link_type.name,
-            "link_path": self.link_path
+            "link_type": self.link_type.name
         }
