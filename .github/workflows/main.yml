@@ -133,7 +133,7 @@ jobs:
           pip3 install ./dist/*.tar.gz
       - name: Start Application
         run: |
-          nohup python3 -u ./example_app/app.py dir --debug &
+          nohup python3 -u examples/example_app/app.py dir --debug &
           echo $! > app.pid
       - name: Application Status Before Test
         run: |
@@ -149,52 +149,45 @@ jobs:
         run: |
           kill `cat app.pid` # kill resulting PID
           sudo umount dir
-#  test_output:
-#    strategy:
-#      matrix:
-#        python: [3.5.7, 3.7.4]
-#    needs: build
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout CoreFS
-#        uses: actions/checkout@master
-#      - name: Set up Python ${{ matrix.python }}
-#        uses: actions/setup-python@master
-#        with:
-#          python-version: ${{ matrix.python }}
-#      - name: Installing FUSE
-#        run: |
-#          sudo chmod 777 install_fuse.sh
-#          ./install_fuse.sh $FUSE_VERSION
-#      - name: Install Dependencies
-#        run: |
-#          python3 -m pip install --upgrade pip
-#          pip3 install -r requirements.txt
-#      - name: Download Archive
-#        uses: actions/download-artifact@master
-#        with:
-#          name: package
-#          path: dist
-#      - name: Lookup Archive
-#        run: ls
-#      - name: Install Package
-#        run: |
-#          pip3 install ./dist/*.tar.gz
-#      - name: Start Application
-#        run: |
-#          nohup python3 -u ./example_output/app.py dir --debug &
-#          echo $! > app.pid
-#      - name: Application Status Before Test
-#        run: |
-#          cat logs/*.log
-#      - name: Run Basic Tests with pytest
-#        run: |
-#          pip3 install pytest
-#          pytest tests/advanced/output
-#      - name: Read Logs
-#        run: |
-#          cat logs/*.log
-#      - name: Stop Application
-#        run: |
-#          kill `cat app.pid` # kill resulting PID
-#          sudo umount dir
+  test_output:
+    strategy:
+      matrix:
+        python: [3.5.7, 3.7.4]
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoreFS
+        uses: actions/checkout@master
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Installing FUSE
+        run: |
+          sudo chmod 777 install_fuse.sh
+          ./install_fuse.sh $FUSE_VERSION
+      - name: Install Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+      - name: Download Archive
+        uses: actions/download-artifact@master
+        with:
+          name: package
+          path: dist
+      - name: Lookup Archive
+        run: ls
+      - name: Install Package
+        run: |
+          pip3 install ./dist/*.tar.gz
+      - name: Start Application
+        run: |
+          nohup python3 -u examples/example_output/app.py dir --debug &
+          echo $! > app.pid
+      - name: Read Logs
+        run: |
+          cat logs/*.log
+      - name: Stop Application
+        run: |
+          kill `cat app.pid` # kill resulting PID
+          sudo umount dir

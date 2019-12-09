@@ -23,6 +23,10 @@ from corefs.utils import _logging
 
 
 def wrapper(*params):
+    """ wrapper is a decorator wrapper.
+    It logs a unique count and the operation name.
+
+    """
     def decorator(func):
         async def f(*args, **kwargs):
             fs = args[0]
@@ -116,17 +120,17 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def getattr(self, inode, ctx=None):
-        '''Get attributes for *inode*
+        """Get attributes for *inode*
         *ctx* will be a `RequestContext` instance.
         This method should return an `EntryAttributes` instance with the
         attributes of *inode*. The `~EntryAttributes.entry_timeout` attribute is
         ignored in this context.
-        '''
+        """
         return self.__getattr(inode)
 
     @wrapper(1, 4)
     async def setattr(self, inode, attr, fields, fh, ctx):
-        '''Change attributes of *inode*
+        """Change attributes of *inode*
         *fields* will be an `SetattrFields` instance that specifies which
         attributes are to be updated. *attr* will be an `EntryAttributes`
         instance for *inode* that contains the new values for changed
@@ -143,7 +147,7 @@ class _FileSystem(pyfuse3.Operations):
         *ctx* will be a `RequestContext` instance.
         The method should return an `EntryAttributes` instance (containing both
         the changed and unchanged values).
-        '''
+        """
         if inode not in self.data.nodes:
             self.log.error("Inode %d not saved.", inode)
             raise Exception("Inode not found.")
@@ -185,24 +189,24 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1, 2, 3)
     async def setxattr(self, inode, name, value, ctx):
-        '''Set extended attribute *name* of *inode* to *value*.
+        """Set extended attribute *name* of *inode* to *value*.
         *ctx* will be a `RequestContext` instance.
         The attribute may or may not exist already. Both *name* and *value* will
         be of type `bytes`. *name* is guaranteed not to contain zero-bytes
         (``\\0``).
-        '''
+        """
 
         # http://man7.org/linux/man-pages/man7/xattr.7.html
         self.data.nodes[inode].xattr[name] = value
 
     @wrapper(1, 2)
     async def getxattr(self, inode, name, ctx):
-        '''Return extended attribute *name* of *inode*
+        """Return extended attribute *name* of *inode*
         *ctx* will be a `RequestContext` instance.
         If the attribute does not exist, the method must raise `FUSEError` with
         an error code of `ENOATTR`. *name* will be of type `bytes`, but is
         guaranteed not to contain zero-bytes (``\\0``).
-        '''
+        """
 
         xattr = self.data.nodes[inode].xattr
 
@@ -213,7 +217,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1, 2)
     async def lookup(self, parent_inode, name, ctx=None):
-        '''Look up a directory entry by name and get its attributes.
+        """Look up a directory entry by name and get its attributes.
         This method should return an `EntryAttributes` instance for the
         directory entry *name* in the directory with inode *parent_inode*.
         If there is no such entry, the method should either return an
@@ -226,7 +230,7 @@ class _FileSystem(pyfuse3.Operations):
         :file:`..`, no matter if these entries are returned by `readdir` or not.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
 
         self.log.debug("current nodes")
         self.log.debug(self.data.nodes)
@@ -297,7 +301,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def open(self, inode, flags, ctx):
-        '''Open a inode *inode* with *flags*.
+        """Open a inode *inode* with *flags*.
         *ctx* will be a `RequestContext` instance.
         *flags* will be a bitwise or of the open flags described in the
         :manpage:`open(2)` manpage and defined in the `os` module (with the
@@ -307,7 +311,7 @@ class _FileSystem(pyfuse3.Operations):
         `write`, `flush`, `fsync` and `release` methods to identify the open
         file. The `FileInfo` instance may also have relevant configuration
         attributes set; see the `FileInfo` documentation for more information.
-        '''
+        """
 
         # TODO: Add permission handling to nodes.
         assert flags & os.O_CREAT == 0
@@ -331,20 +335,20 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def read(self, inode, off, size):
-        '''Read *size* bytes from *fh* at position *off*
+        """Read *size* bytes from *fh* at position *off*
         *fh* will by an integer filehandle returned by a prior `open` or
         `create` call.
         This function should return exactly the number of bytes requested except
         on EOF or error, otherwise the rest of the data will be substituted with
         zeroes.
-        '''
+        """
 
         self.log.debug(self.data.nodes[inode].get_data()[off: off+size])
         return self.data.nodes[inode].get_data()[off: off+size]
 
     @wrapper(2)
     async def create(self, parent_inode, name, mode, flags, ctx):
-        '''Create a file with permissions *mode* and open it with *flags*
+        """Create a file with permissions *mode* and open it with *flags*
         *ctx* will be a `RequestContext` instance.
         The method must return a tuple of the form *(fh, attr)*, where *fh* is a
         file handle like the one returned by `open` and *attr* is an
@@ -352,7 +356,7 @@ class _FileSystem(pyfuse3.Operations):
         directory entry.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
 
         # TODO: If name already exists, what should be done?
 
@@ -373,14 +377,14 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1, 2)
     async def write(self, inode, off, buf):
-        '''Write *buf* into *fh* at *off*
+        """Write *buf* into *fh* at *off*
         *fh* will by an integer filehandle returned by a prior `open` or
         `create` call.
         This method must return the number of bytes written. However, unless the
         file system has been mounted with the ``direct_io`` option, the file
         system *must* always write *all* the provided data (i.e., return
         ``len(buf)``).
-        '''
+        """
 
         try:
             output = ""
@@ -401,19 +405,19 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1, 2)
     async def access(self, inode, mode, ctx):
-        '''Check if requesting process has *mode* rights on *inode*.
+        """Check if requesting process has *mode* rights on *inode*.
         *ctx* will be a `RequestContext` instance.
         The method must return a boolean value.
         If the ``default_permissions`` mount option is given, this method is not
         called.
         When implementing this method, the `get_sup_groups` function may be
         useful.
-        '''
+        """
         raise FUSEError(errno.ENOSYS)
 
     @wrapper(1)
     async def release(self, inode):
-        '''Release open file
+        """Release open file
         This method will be called when the last file descriptor of *inode* has
         been closed, i.e. when the file is no longer opened by any client
         process.
@@ -423,7 +427,7 @@ class _FileSystem(pyfuse3.Operations):
         another `open` or `create` call).
         This method may return an error by raising `FUSEError`, but the error
         will be discarded because there is no corresponding client request.
-        '''
+        """
         if inode not in self.data.nodes:
             self.log.warning("Can't release inode. Doesn't exist anymore.")
             return
@@ -432,7 +436,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(2)
     async def unlink(self, parent_inode, name, ctx):
-        '''Remove a (possibly special) file
+        """Remove a (possibly special) file
             This method must remove the (special or regular) file *name* from the
             directory with inode *parent_inode*.  *ctx* will be a `RequestContext`
             instance.
@@ -446,7 +450,7 @@ class _FileSystem(pyfuse3.Operations):
             the `forget` method to be carried out when the lookup count reaches zero
             (and of course only if at that point there are no more directory entries
             associated with the inode either).
-            '''
+            """
 
         children = self.data.get_children(parent_inode)
         if len(children) == 0:
@@ -468,18 +472,18 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def flush(self, inode):
-        '''Handle close() syscall.
+        """Handle close() syscall.
         *fh* will by an integer filehandle returned by a prior `open` or
         `create` call.
         This method is called whenever a file descriptor is closed. It may be
         called multiple times for the same open file (e.g. if the file handle
         has been duplicated).
-        '''
+        """
         pass
 
     @wrapper(1)
     async def forget(self, inode_list):
-        '''Decrease lookup counts for inodes in *inode_list*
+        """Decrease lookup counts for inodes in *inode_list*
         *inode_list* is a list of ``(inode, nlookup)`` tuples. This method
         should reduce the lookup count for each *inode* by *nlookup*.
         If the lookup count reaches zero, the inode is currently not known to
@@ -493,7 +497,7 @@ class _FileSystem(pyfuse3.Operations):
         every such inode after `main` has returned).
         This method must not raise any exceptions (not even `FUSEError`), since
         it is not handling a particular client request.
-        '''
+        """
 
         for (inode, nlookup) in inode_list:
             self.log.debug("inode: %d, nlookup: %d", inode, nlookup)
@@ -511,17 +515,17 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def fsync(self, inode, datasync):
-        '''Flush buffers for open file *fh*
+        """Flush buffers for open file *fh*
         If *datasync* is true, only the file contents should be
         flushed (in contrast to the metadata about the file).
         *fh* will by an integer filehandle returned by a prior `open` or
         `create` call.
-        '''
+        """
         pass
 
     @wrapper(2, 4)
     async def rename(self, parent_inode_old, name_old, parent_inode_new, name_new, flags, ctx):
-        '''Rename a directory entry.
+        """Rename a directory entry.
         This method must rename *name_old* in the directory with inode
         *parent_inode_old* to *name_new* in the directory with inode
         *parent_inode_new*.  If *name_new* already exists, it should be
@@ -543,7 +547,7 @@ class _FileSystem(pyfuse3.Operations):
         deferred to the `forget` method to be carried out when the lookup count
         reaches zero (and of course only if at that point there are no more
         directory entries associated with *inode_deref* either).
-        '''
+        """
         # See https://github.com/libfuse/pyfuse3/blob/1730558574361bf7b05b1be2a228a0443deca088/examples/tmpfs.py#L224
         if flags != 0:
             raise FUSEError(errno.EINVAL)
@@ -567,7 +571,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1, 2, 3)
     async def symlink(self, parent_inode, name, target, ctx):
-        '''Create a symbolic link
+        """Create a symbolic link
         This method must create a symbolink link named *name* in the directory
         with inode *parent_inode*, pointing to *target*.  *ctx* will be a
         `RequestContext` instance.
@@ -575,7 +579,7 @@ class _FileSystem(pyfuse3.Operations):
         of the newly created directory entry.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
         try:
             target = os.fsdecode(target)
             if target[0] != os.sep:
@@ -591,11 +595,11 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def readlink(self, inode, ctx):
-        '''Return target of symbolic link *inode*.
+        """Return target of symbolic link *inode*.
         *ctx* will be a `RequestContext` instance.
 
         Currently, this function only works in this FUSE filesystem.
-        '''
+        """
         entry = self.data.get_link_entry(inode, LinkTypes.SYMBOLIC)
         self.log.debug("Read link of {}".format(entry))
         if entry is None:
@@ -607,13 +611,13 @@ class _FileSystem(pyfuse3.Operations):
     # Hardlink -> inode connects to 2 or more nodes
     @wrapper(1, 3)
     async def link(self, inode, new_parent_inode, new_name, ctx):
-        '''Create directory entry *name* in *parent_inode* refering to *inode*.
+        """Create directory entry *name* in *parent_inode* refering to *inode*.
         *ctx* will be a `RequestContext` instance.
         The method must return an `EntryAttributes` instance with the
         attributes of the newly created directory entry.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
         self.data.add_link_entry(
             new_name, new_parent_inode, LinkTypes.HARDLINK, target_inode=inode)
         self.data.try_increase_op_count(inode)
@@ -621,7 +625,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(2)
     async def mknod(self, parent_inode, name, mode, rdev, ctx):
-        '''Create (possibly special) file
+        """Create (possibly special) file
         This method must create a (special or regular) file *name* in the
         directory with inode *parent_inode*. Whether the file is special or
         regular is determined by its *mode*. If the file is neither a block nor
@@ -631,7 +635,7 @@ class _FileSystem(pyfuse3.Operations):
         of the newly created directory entry.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
         self.log.debug("With mode: %s", mode)
 
         inode = self.data.add_inode(name, parent_inode, mode=mode)
@@ -639,7 +643,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(2)
     async def mkdir(self, parent_inode, name, mode, ctx):
-        '''Create a directory
+        """Create a directory
         This method must create a new directory *name* with mode *mode* in the
         directory with inode *parent_inode*. *ctx* will be a `RequestContext`
         instance.
@@ -647,24 +651,24 @@ class _FileSystem(pyfuse3.Operations):
         attributes of the newly created directory entry.
         (Successful) execution of this handler increases the lookup count for
         the returned inode by one.
-        '''
+        """
         return self.__getattr(self.data.add_entry(name, parent_inode,
                                                   node_type=Types.DIR, mode=mode).inode)
 
     @wrapper(1)
     async def opendir(self, inode, ctx):
-        '''Open the directory with inode *inode*
+        """Open the directory with inode *inode*
         *ctx* will be a `RequestContext` instance.
         This method should return an integer file handle. The file handle will
         be passed to the `readdir`, `fsyncdir` and `releasedir` methods to
         identify the directory.
-        '''
+        """
         self.data.try_increase_op_count(inode)
         return inode
 
     @wrapper(1)
     async def readdir(self, inode, start_id, token):
-        '''Read entries in open directory *inode*.
+        """Read entries in open directory *inode*.
         This method should list the contents of directory *inode* (as returned by a
         prior `opendir` call), starting at the entry identified by *start_id*.
         Instead of returning the directory entries directly, the method must
@@ -685,7 +689,7 @@ class _FileSystem(pyfuse3.Operations):
         required. However, if they are reported the filesystem *must not*
         increase the lookup count for the corresponding inodes (even if
         `readdir_reply` returns True).
-        '''
+        """
         self.log.debug("start_id: %s", start_id)
         dir_path = self.data.get_entry(inode).get_full_path()
         self.log.debug("dirpath: %s", dir_path)
@@ -716,7 +720,7 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(2)
     async def rmdir(self, parent_inode, name, ctx):
-        '''Remove directory *name*
+        """Remove directory *name*
         This method must remove the directory *name* from the directory with
         inode *parent_inode*. *ctx* will be a `RequestContext` instance. If
         there are still entries in the directory, the method should raise
@@ -732,7 +736,7 @@ class _FileSystem(pyfuse3.Operations):
         is not required to check if there are still other directory entries
         refering to the same inode. This conveniently avoids the ambigiouties
         associated with the ``.`` and ``..`` entries).
-        '''
+        """
 
         try:
             self.log.debug("Getting childs of: {0} with name: {1}".format(
@@ -766,31 +770,31 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def releasedir(self, inode):
-        '''Release open directory
+        """Release open directory
         This method will be called exactly once for each `opendir` call. After
         *fh* has been released, no further `readdir` requests will be received
         for it (until it is opened again with `opendir`).
-        '''
+        """
         self.data.nodes[inode].unlock()
         self.data.try_decrease_op_count(inode)
 
     @wrapper(1)
     async def fsyncdir(self, inode, datasync):
-        '''Flush buffers for open directory *fh*
+        """Flush buffers for open directory *fh*
         If *datasync* is true, only the directory contents should be
         flushed (in contrast to metadata about the directory itself).
-        '''
+        """
         pass
 
     @wrapper()
     async def statfs(self, ctx):
-        '''Get file system statistics
+        """Get file system statistics
         *ctx* will be a `RequestContext` instance.
         The method must return an appropriately filled `StatvfsData` instance.
 
         See https://linux.die.net/man/2/statvfs
         and https://github.com/libfuse/pyfuse3/blob/1730558574361bf7b05b1be2a228a0443deca088/examples/tmpfs.py#L323
-        '''
+        """
 
         stats = pyfuse3.StatvfsData()
         stats.f_bsize = 512
@@ -816,12 +820,12 @@ class _FileSystem(pyfuse3.Operations):
         return stats
 
     def stacktrace(self):
-        '''Asynchronous debugging
+        """Asynchronous debugging
         This method will be called when the ``fuse_stacktrace`` extended
         attribute is set on the mountpoint. The default implementation logs the
         current stack trace of every running Python thread. This can be quite
         useful to debug file system deadlocks.
-        '''
+        """
 
         self.log.info("----")
         self.log.info("stacktrace")
@@ -834,7 +838,7 @@ class _FileSystem(pyfuse3.Operations):
         for threadId, frame in sys._current_frames().items():
             code.append("\n# ThreadID: %s" % threadId)
             for filename, lineno, name, line in traceback.extract_stack(frame):
-                code.append('%s:%d, in %s' %
+                code.append("%s:%d, in %s" %
                             (os.path.basename(filename), lineno, name))
                 if line:
                     code.append("    %s" % (line.strip()))
@@ -843,22 +847,22 @@ class _FileSystem(pyfuse3.Operations):
 
     @wrapper(1)
     async def listxattr(self, inode, ctx):
-        '''Get list of extended attributes for *inode*
+        """Get list of extended attributes for *inode*
         *ctx* will be a `RequestContext` instance.
         This method must return a sequence of `bytes` objects.  The objects must
         not include zero-bytes (``\\0``).
-        '''
+        """
         if inode in self.data.nodes and self.data.nodes[inode].xattr is not None:
             return self.data.nodes[inode].xattr.values()
         raise FUSEError(pyfuse3.ENOATTR)
 
     @wrapper(1, 2)
     async def removexattr(self, inode, name, ctx):
-        '''Remove extended attribute *name* of *inode*
+        """Remove extended attribute *name* of *inode*
         *ctx* will be a `RequestContext` instance.
         If the attribute does not exist, the method must raise `FUSEError` with
         an error code of `ENOATTR`. *name* will be of type `bytes`, but is
         guaranteed not to contain zero-bytes (``\\0``).
-        '''
+        """
         if name in self.data.nodes[inode].xattr:
             del self.data.nodes[inode].xattr[name]

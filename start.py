@@ -4,7 +4,7 @@ from corefs.core import CoreFS
 from corefs.filesystem.standard_fs import StandardFileSystem
 
 '''
-This file is needed to start corefs in this package.
+This file is needed to start corefs in this package for testing purpose.
 '''
 
 

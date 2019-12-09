@@ -1,12 +1,5 @@
-- Drawing hourglass model for corefs
 - FS functions to implement (ordered by importance from bottom to top):
     - fsyncdir
     - fsync
     - flush
-
-
-
-Errors:
-- 22 Readdir calls at the beginning of each session. -> listening process is disturbed
-- rmdir not working correctly: 2 x fs_test
 
