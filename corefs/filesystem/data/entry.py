@@ -7,7 +7,41 @@ from corefs.utils._fs_utils import LinkTypes, Encodings
 
 class Entry():
 
+    """
+    Entrydict inherits dict functionalities and provides further methods to manipulate entries.
+
+    ...
+
+    Attributes
+    ----------
+    inode : int
+        an inode number
+    name : str or bytes
+        a string or bytes representation of the name
+    path : str
+        a path
+    parent : int, optional
+        a parent inode
+    link_type : corefs.utils._fs_utils.LinkTypes
+        a type of link
+
+    """
+
     def __init__(self, inode, name, path, parent=None, link_type=None):
+        """
+        Parameters
+        ----------
+        inode : int
+            an inode number
+        name : str or bytes
+            a string or bytes representation of the name
+        path : str
+            a path
+        parent : int, optional
+            a parent inode
+        link_type : corefs.utils._fs_utils.LinkTypes
+            a type of link
+        """
         self.inode = inode
         self.name = name
         self.path = path

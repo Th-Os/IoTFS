@@ -13,7 +13,27 @@ from corefs.utils import _logging
 
 class Data():
 
+    """
+    This Data class holds every entry and node.
+    It provides methods to create, search, get and manipulate these two.
+
+    ...
+
+    Attributes
+    ----------
+    logger : logging.logger
+        an already initialized logger instance
+
+    """
+
     def __init__(self, logger=None):
+        """
+        Parameters
+        ----------
+        logger : logging.logger
+            an already initialized logger instance
+        """
+
         super().__init__()
         if logger is not None:
             self.log = logger
@@ -24,8 +44,10 @@ class Data():
         self.inode_entries_map = dict()
         self.inode_unique_count = 0
 
-    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, link_type=None,
-                  link_path=None):
+    def add_entry(self, name, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE):
+        """ Adds a new entry and a new node.
+
+        """
         parent_entry = self.get_entry(parent_inode)
         path = parent_entry.get_full_path()
         entry = None
@@ -43,6 +65,10 @@ class Data():
         return entry
 
     def add_link_entry(self, name, parent_inode, link_type, mode=STANDARD_MODE, link_path=None, target_inode=None):
+        """ Adds a new linkentry that is either a hard or a symbolic link
+            and a node depending on the existance of target_inode.
+
+        """
         parent_entry = self.get_entry(parent_inode)
         self.log.debug(parent_entry)
         path = parent_entry.get_full_path()
@@ -102,6 +128,12 @@ class Data():
         return entry
 
     def add_root_entry(self, name, mode=STANDARD_MODE):
+        """ Adding the root entry. Only one should exist.
+
+        """
+        if ROOT_INODE in self.nodes:
+            self.log.error("Root entry already added.")
+            return
         self.log.debug("Adding root entry.")
         if os.sep in name:
             parts = name.rsplit(os.sep, 1)
@@ -119,8 +151,10 @@ class Data():
         self.inode_entries_map[ROOT_INODE] = [entry]
         self.inode_unique_count += 1
 
-    # TODO: refactor is_link behavior
     def __add_inode(self, parent_inode, node_type=Types.FILE, data="", mode=STANDARD_MODE, is_link=False):
+        """ Adding an inode.
+
+        """
         if len(self.nodes) == 0:
             self.log.error("No root inode in nodes?")
             inode = 2
@@ -144,6 +178,9 @@ class Data():
         return inode
 
     def get_symbolic_target(self, entry):
+        """ Getting the target of a pointer by a SymbolicEntry.
+
+        """
         if type(entry) == SymbolicEntry:
             parts = entry.link_path.split(os.sep)
             name = parts[-1]
@@ -156,6 +193,9 @@ class Data():
         return None
 
     def get_entries_of_inode(self, inode, link_type=None):
+        """ Get all entries of an inode. Can deliver link type specific entries too.
+
+        """
         self.log.debug(
             "Get entries of inode {0} and linktype {1}".format(inode, link_type))
         if link_type is None:
@@ -182,6 +222,9 @@ class Data():
         return None
 
     def get_entry_by_parent_name(self, parent_inode, name):
+        """ Search for entry by parent_inode and the childs entry name.
+
+        """
         entries = self.get_children(parent_inode)
         for entry in entries:
             if entry.name == name:
@@ -189,6 +232,9 @@ class Data():
         return None
 
     def get_entry(self, inode):
+        """ Get the normal Entry of an inode. If there is none, return the Symbolic one.
+
+        """
         self.log.debug("Get entry of inode %d", inode)
         filtered_entries = [entry for entry in self.inode_entries_map[inode]
                             if entry.link_type is None]
@@ -208,6 +254,9 @@ class Data():
         return filtered_entries[0]
 
     def get_children(self, inode):
+        """ Get all children of an inode and return their entries.
+
+        """
         if type(self.nodes[inode]) is not Directory:
             self.log.error("Inode %d is no directory.", inode)
             raise NotADirectoryError("Inode {} is no directory.".format(inode))
@@ -229,6 +278,9 @@ class Data():
         return entries
 
     def get_link_entry(self, inode, link_type):
+        """ Get the LinkEntry of a inode by link_type.
+
+        """
         try:
             entries = self.inode_entries_map[inode]
             for entry in entries:
@@ -239,6 +291,9 @@ class Data():
         return None
 
     def remove_entries(self, inode, entries):
+        """ Remove all provided entries of an inode.
+
+        """
         self.log.debug(
             "Remove entries: {0} of inode: {1}".format(entries, inode))
         for path in self.entries:
@@ -251,6 +306,15 @@ class Data():
                     self.log.debug("Last item was deleted.")
 
     def try_remove_inode(self, inode):
+        """ Trying to remove an inode.
+
+        First it will check, whether the provided inode is ROOT_INODE.
+        When that is true it will return nothing immidiatly.
+        After that it checks, if the open count of the provided inode is smaller than one.
+        If that is the case, it will delete all entries of this inode
+        and then itself.
+
+        """
         self.log.info("Trying to remove inode %d.", inode)
         if inode == ROOT_INODE:
             return
@@ -267,6 +331,14 @@ class Data():
             self.log.warning("Inode %d doesn't exist.", inode)
 
     def try_decrease_op_count(self, inode):
+        """ Trying to decrease open count.
+
+        First decreases open count. Then it will lock the inode on certain conditions.
+        The locked inode will definitly removed.
+
+        Fails, when inode does not exist.
+
+        """
         self.log.debug("Trying to decrease op count of %d.", inode)
         if inode == ROOT_INODE:
             return
@@ -284,6 +356,11 @@ class Data():
             self.log.error(e)
 
     def try_increase_op_count(self, inode):
+        """ Trying to increase open count of provided inode.
+
+        Fails, when inode does not exist.
+
+        """
         self.log.debug("Trying to increase op count of %d.", inode)
         if inode == ROOT_INODE:
             return

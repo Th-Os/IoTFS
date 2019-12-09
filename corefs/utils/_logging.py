@@ -8,6 +8,10 @@ LOGGER_LIST = []
 
 
 def create_logger(name="corefs", debug=False, with_file=True):
+    """ Creates a logger.
+
+    """
+
     formatter = logging.Formatter('[%(name)s | %(threadName)s | %(asctime)s.%(msecs)03d] %(levelname)s: '
                                   '%(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
