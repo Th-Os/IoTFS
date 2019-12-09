@@ -12,7 +12,6 @@ This System will open possibilities for:
 - Python >=3.5
 - specific libraries defined in requirements.txt
 
-## What needs to be done
+## Future Work
 
-- Implementing Adapter (Bottom -> Up)
-- Implementing Connector (Up -> Bottom)
+- tbd

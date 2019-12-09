@@ -1,3 +1,5 @@
+# This script will install a specific FUSE version.
+
 sudo apt-get install ninja-build
 wget https://github.com/libfuse/libfuse/releases/download/fuse-$1/fuse-$1.tar.xz
 pip3 install meson
