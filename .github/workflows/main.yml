@@ -15,7 +15,7 @@ jobs:
   lint: # install, lint, test, build
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python ${{ matrix.python }}
@@ -36,7 +36,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
   install_and_test:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: lint
     runs-on: ubuntu-latest
     steps:
@@ -103,7 +103,7 @@ jobs:
   test_app:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -152,7 +152,7 @@ jobs:
   test_output:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: build
     runs-on: ubuntu-latest
     steps:
