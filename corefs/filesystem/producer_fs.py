@@ -122,7 +122,7 @@ class ProducerFileSystem(FileSystem):
         node = self.data.nodes[entry.inode]
         operation = None
         renamed_node = None
-        if node.get_type() == Types.FILE:
+        if node.type == Types.FILE:
             operation = Operations.RENAME_FILE
         else:
             operation = Operations.RENAME_DIR
