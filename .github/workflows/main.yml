@@ -141,7 +141,7 @@ jobs:
       - name: Run Tests with pytest
         run: |
           pip3 install pytest
-          pytest --ignore tests/advanced
+          pytest
       - name: Read Logs
         run: |
           cat logs/*.log

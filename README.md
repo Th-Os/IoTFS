@@ -1,6 +1,6 @@
 ![](https://github.com/th-os/iotfs/workflows/IoTFS/badge.svg)
 
-# Core Filesystem
+# IoT Filesystem
 
 This System will open possibilities for:
 - including data (e.g. sensor, network, workflow data) to your filesystem.

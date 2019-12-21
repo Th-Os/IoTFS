@@ -77,7 +77,7 @@ class Data():
         entry = None
         if link_type == LinkTypes.SYMBOLIC:
             '''
-                - has its own inode
+                - currently has its own inode, because of prototype
                 - no data in file
                 - points to another entry
                 - can point to file in another fs or even directories
@@ -101,6 +101,14 @@ class Data():
             if source_entry is None:
                 raise Exception("No source entry found in current filesystem.")
 
+            # Restructure path
+            common_path = os.path.commonpath([source_path, link_path])
+            self.log.debug("common path: %s", common_path)
+            if link_path.startswith(common_path):
+                link_path = link_path[len(common_path):]
+            if link_path.startswith(os.sep):
+                link_path = link_path[1:]
+            self.log.debug("final link path: %s", link_path)
             inode = self.__add_inode(
                 parent_inode, node_type=self.nodes[source_entry.inode].type, mode=LINK_MODE, is_link=True)
             entry = SymbolicEntry(

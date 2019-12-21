@@ -358,8 +358,6 @@ class _FileSystem(pyfuse3.Operations):
         the returned inode by one.
         """
 
-        # TODO: If name already exists, what should be done?
-
         if name.decode("utf-8")[-4:] == ".swp":
             self.log.debug("Creating a swap file.")
         try:
