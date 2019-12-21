@@ -1,4 +1,4 @@
-name: CoreFS
+name: iotfs
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ jobs:
   lint: # install, lint, test, build
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Python ${{ matrix.python }}
@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Lint with flake8
         run: |
@@ -36,11 +36,11 @@ jobs:
   build:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -61,11 +61,11 @@ jobs:
   install_and_test:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -103,11 +103,11 @@ jobs:
   test_app:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -133,7 +133,7 @@ jobs:
           pip3 install ./dist/*.tar.gz
       - name: Start Application
         run: |
-          nohup python3 -u ./example_app/app.py dir --debug &
+          nohup python3 -u examples/example_app/app.py dir --debug &
           echo $! > app.pid
       - name: Application Status Before Test
         run: |
@@ -141,62 +141,7 @@ jobs:
       - name: Run Tests with pytest
         run: |
           pip3 install pytest
-          pytest --ignore tests/advanced
-      - name: Read Logs
-        run: |
-          cat logs/*.log
-      - name: Stop Application
-        run: |
-          kill `cat app.pid` # kill resulting PID
-          sudo umount dir
-  test_input:
-    strategy:
-      matrix:
-        python: [3.5.7, 3.7.4]
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout CoreFS
-        uses: actions/checkout@master
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@master
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Installing FUSE
-        run: |
-          sudo chmod 777 install_fuse.sh
-          ./install_fuse.sh $FUSE_VERSION
-      - name: Install Dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install -r requirements.txt
-          python3 -m pip install paho_mqtt
-          python3 -m pip install watchdog # only used for input_example
-      - name: Install MQTT Broker
-        run: |
-          sudo apt-get install mosquitto
-          echo `service mosquitto status`
-      - name: Download Archive
-        uses: actions/download-artifact@master
-        with:
-          name: package
-          path: dist
-      - name: Lookup Archive
-        run: ls
-      - name: Install Package
-        run: |
-          pip3 install ./dist/*.tar.gz
-      - name: Start Application
-        run: |
-          nohup python3 -u ./example_input/app.py dir --debug &
-          echo $! > app.pid
-      - name: Application Status Before Test
-        run: |
-          cat logs/*.log
-      - name: Run Tests with pytest
-        run: |
-          pip3 install pytest pytest-custom_exit_code
-          pytest --suppress-tests-failed-exit-code tests/advanced/input # option to get logs in next step
+          pytest
       - name: Read Logs
         run: |
           cat logs/*.log
@@ -207,11 +152,11 @@ jobs:
   test_output:
     strategy:
       matrix:
-        python: [3.5.7, 3.7.4]
+        python: [3.5.7, 3.7.5]
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -237,15 +182,8 @@ jobs:
           pip3 install ./dist/*.tar.gz
       - name: Start Application
         run: |
-          nohup python3 -u ./example_output/app.py dir --debug &
+          nohup python3 -u examples/example_output/app.py dir --debug &
           echo $! > app.pid
-      - name: Application Status Before Test
-        run: |
-          cat logs/*.log
-      - name: Run Basic Tests with pytest
-        run: |
-          pip3 install pytest
-          pytest tests/advanced/output
       - name: Read Logs
         run: |
           cat logs/*.log

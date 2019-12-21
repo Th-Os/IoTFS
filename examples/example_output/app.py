@@ -1,11 +1,9 @@
 from argparse import ArgumentParser
 
 from iotfs.main import IoTFS
-from iotfs.filesystem.standard_fs import StandardFileSystem
+from iotfs.filesystem.producer_fs import ProducerFileSystem
 
-'''
-This file is needed to start IoTFS in this package for testing purpose.
-'''
+from listener import CustomListener
 
 
 def parse_args():
@@ -22,8 +20,9 @@ def parse_args():
 
 def main():
     options = parse_args()
-    fs = StandardFileSystem(options.mountpoint, debug=options.debug)
-    IoTFS(fs, debug=options.debug)
+    fs = ProducerFileSystem(options.mountpoint)
+    ls = CustomListener()
+    IoTFS(fs, listeners=[ls], debug=options.debug)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ setuptools.setup(
     license="MIT",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/th-os/corefs",
+    url="https://github.com/th-os/iotfs",
     packages=setuptools.find_packages(),
     platforms=['Linux'],
     classifiers=[

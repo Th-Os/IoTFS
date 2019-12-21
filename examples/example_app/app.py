@@ -3,10 +3,6 @@ from argparse import ArgumentParser
 from iotfs.main import IoTFS
 from iotfs.filesystem.standard_fs import StandardFileSystem
 
-'''
-This file is needed to start IoTFS in this package for testing purpose.
-'''
-
 
 def parse_args():
     '''Parse command line'''
@@ -22,7 +18,9 @@ def parse_args():
 
 def main():
     options = parse_args()
+
     fs = StandardFileSystem(options.mountpoint, debug=options.debug)
+
     IoTFS(fs, debug=options.debug)
 
 

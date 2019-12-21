@@ -124,9 +124,6 @@ def test_rename():
     os.unlink(renamed_file_path)
 
 
-""" Not implemented yet.
-
-
 def test_symlink():
     dir_path = os.path.join(ROOT_DIR, 'a_dir')
     os.mkdir(dir_path)
@@ -154,4 +151,23 @@ def test_link():
     os.unlink(dest)
     assert os.path.exists(file_path) is False
     assert os.path.exists(dest) is False
-"""
+
+
+def test_truncate():
+    file_path = os.path.join(ROOT_DIR, 'file_nine')
+    with open(file_path, "w+") as f:
+        f.write("bla")
+    assert os.path.exists(file_path)
+    with open(file_path, "r") as f:
+        assert f.read() == "bla"
+    os.truncate(file_path, 0)
+    with open(file_path, "r") as f:
+        assert f.read() == ""
+    with open(file_path, "w") as f:
+        f.write("next")
+    fd = os.open(file_path, os.O_WRONLY | os.O_TRUNC)
+    os.ftruncate(fd, 0)
+    with open(file_path, "r") as f:
+        assert f.read() == ""
+    os.unlink(file_path)
+    assert os.path.exists(file_path) is False

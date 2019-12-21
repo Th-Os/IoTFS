@@ -1,6 +1,6 @@
 ![](https://github.com/th-os/iotfs/workflows/IoTFS/badge.svg)
 
-# Core Filesystem
+# IoT Filesystem
 
 This System will open possibilities for:
 - including data (e.g. sensor, network, workflow data) to your filesystem.
@@ -12,7 +12,6 @@ This System will open possibilities for:
 - Python >=3.5
 - specific libraries defined in requirements.txt
 
-## What needs to be done
+## Future Work
 
-- Implementing Adapter (Bottom -> Up)
-- Implementing Connector (Up -> Bottom)
+- tbd
