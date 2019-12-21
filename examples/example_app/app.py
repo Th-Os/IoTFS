@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
-from corefs.core import CoreFS
-from corefs.filesystem.standard_fs import StandardFileSystem
+from iotfs.main import IoTFS
+from iotfs.filesystem.standard_fs import StandardFileSystem
 
 
 def parse_args():
@@ -21,7 +21,7 @@ def main():
 
     fs = StandardFileSystem(options.mountpoint, debug=options.debug)
 
-    CoreFS(fs, debug=options.debug)
+    IoTFS(fs, debug=options.debug)
 
 
 if __name__ == "__main__":

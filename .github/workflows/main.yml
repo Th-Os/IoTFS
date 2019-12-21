@@ -1,4 +1,4 @@
-name: CoreFS
+name: iotfs
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Upgrading pip
         run: python3 -m pip install --upgrade pip
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Lint with flake8
         run: |
@@ -40,7 +40,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -65,7 +65,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -107,7 +107,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master
@@ -156,7 +156,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout CoreFS
+      - name: Checkout IoTFS
         uses: actions/checkout@master
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@master

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
-from corefs.core import CoreFS
-from corefs.filesystem.producer_fs import ProducerFileSystem
+from iotfs.main import IoTFS
+from iotfs.filesystem.producer_fs import ProducerFileSystem
 
 from listener import CustomListener
 
@@ -22,7 +22,7 @@ def main():
     options = parse_args()
     fs = ProducerFileSystem(options.mountpoint)
     ls = CustomListener()
-    CoreFS(fs, listeners=[ls], debug=options.debug)
+    IoTFS(fs, listeners=[ls], debug=options.debug)
 
 
 if __name__ == "__main__":
