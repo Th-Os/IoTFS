@@ -102,12 +102,14 @@ class Data():
                 raise Exception("No source entry found in current filesystem.")
 
             # Restructure path
+            '''
             common_path = os.path.commonpath([source_path, link_path])
             self.log.debug("common path: %s", common_path)
             if link_path.startswith(common_path):
                 link_path = link_path[len(common_path):]
             if link_path.startswith(os.sep):
                 link_path = link_path[1:]
+            '''
             self.log.debug("final link path: %s", link_path)
             inode = self.__add_inode(
                 parent_inode, node_type=self.nodes[source_entry.inode].type, mode=LINK_MODE, is_link=True)
@@ -190,11 +192,18 @@ class Data():
 
         """
         if type(entry) == SymbolicEntry:
+            self.log.debug("HELLO SYMBOLIC TARGET")
+            self.log.debug(entry.path)
+            self.log.debug(entry.link_path)
+            self.log.debug(entry.parent.path)
             parts = entry.link_path.split(os.sep)
             name = parts[-1]
-            path = os.path.join(*parts[:-1])
-            if entry.link_path[0] == os.sep:
-                path = os.sep + path
+            path = ""
+            if len(parts[:-1]) > 0:
+                path = os.path.join(*parts[:-1])
+                if entry.link_path[0] == os.sep:
+                    path = os.sep + path
+            path = os.path.join(entry.parent.get_full_path(), path)
             result = self.get_entry_by_name_path(name, path)
             self.log.debug(result)
             return result
@@ -220,6 +229,7 @@ class Data():
     def get_entry_by_name_path(self, name, path):
         self.log.debug(
             "Get entry by name {0} and path {1}".format(name, path))
+        self.log.debug(self.entries)
         if path in self.entries:
             for entry in self.entries[path]:
                 if entry.get_name(Encodings.UTF_8_ENCODING) == name and entry.path == path:
