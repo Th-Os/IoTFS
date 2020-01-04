@@ -4,11 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="core-fs",
+    name="iot-fs",
     version="0.0.1",
     author="Thomas Oswald",
     author_email="thomas.oswald@student.ur.de",
-    description="A Filesystem for data flows.",
+    description="A Filesystem for IoT data flows.",
     license="MIT",
     long_description=long_description,
     long_description_content_type="text/markdown",
