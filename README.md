@@ -11,7 +11,12 @@ Carried out requirements analysis leads to software developers as potential user
 First-Time-Use of the developed system as API showed better results. Exploration is faster with MQTT-UI, but complex structures are better demonstrated with a file system. Future work could enhance the structure and improve visual interaction with a file manager.
 
 
-## Information
+## Informations
+
+Test Environment:
+- Ubuntu 19.10
+- MQTT UI: [MQTT Explorer from Thomas Nordquist](https://github.com/thomasnordquist/MQTT-Explorer)
+- File System UI: [Nautilus](https://en.wikipedia.org/wiki/GNOME_Files)
 
 This System will open possibilities for:
 - including data (e.g. sensor, network, workflow data) to your filesystem.
